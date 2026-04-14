@@ -45,6 +45,7 @@
             border-radius: 8px;
             cursor: crosshair;
             touch-action: none;
+            border: 1px solid #ddd;
         }
         
         .controls {
@@ -86,10 +87,27 @@
             border-radius: 12px;
         }
         
-        .preview {
+        .status {
             text-align: center;
             font-size: 14px;
-            color: var(--tg-theme-hint-color);
+            padding: 10px;
+            border-radius: 8px;
+            margin-top: 10px;
+        }
+        
+        .status.success {
+            background: rgba(0, 200, 0, 0.2);
+            color: green;
+        }
+        
+        .status.error {
+            background: rgba(200, 0, 0, 0.2);
+            color: red;
+        }
+        
+        .status.info {
+            background: rgba(0, 0, 200, 0.2);
+            color: blue;
         }
     </style>
 </head>
@@ -108,7 +126,7 @@
             ✍️ Нарисуйте вашу подпись пальцем или мышкой
         </div>
         
-        <div class="preview" id="preview"></div>
+        <div id="status" class="status"></div>
     </div>
 
     <script>
@@ -178,14 +196,19 @@
         function clearCanvas() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             ctx.beginPath();
-            
-            // Показываем уведомление об очистке
-            const preview = document.getElementById('preview');
-            preview.innerHTML = 'Canvas очищен';
-            preview.style.color = 'var(--tg-theme-hint-color)';
+            showStatus('Canvas очищен', 'info');
+        }
+        
+        function showStatus(message, type) {
+            const statusDiv = document.getElementById('status');
+            statusDiv.textContent = message;
+            statusDiv.className = `status ${type}`;
             setTimeout(() => {
-                preview.innerHTML = '';
-            }, 1000);
+                if (statusDiv.textContent === message) {
+                    statusDiv.textContent = '';
+                    statusDiv.className = 'status';
+                }
+            }, 3000);
         }
         
         function saveSignature() {
@@ -200,26 +223,32 @@
             }
             
             if (!hasPixels) {
-                const preview = document.getElementById('preview');
-                preview.innerHTML = '⚠️ Пожалуйста, нарисуйте подпись перед сохранением!';
-                preview.style.color = 'red';
-                setTimeout(() => {
-                    preview.innerHTML = '';
-                }, 2000);
+                showStatus('⚠️ Пожалуйста, нарисуйте подпись перед сохранением!', 'error');
                 return;
             }
             
             // Показываем уведомление о сохранении
-            const preview = document.getElementById('preview');
-            preview.innerHTML = '📤 Отправка подписи...';
-            preview.style.color = 'green';
+            showStatus('📤 Отправка подписи...', 'info');
             
-            // Отправляем данные в бот
-            const imageData = canvas.toDataURL('image/png');
-            Telegram.WebApp.sendData(imageData);
-            
-            // Закрываем Web App после отправки
-            Telegram.WebApp.close();
+            try {
+                // Получаем данные изображения
+                const imageData = canvas.toDataURL('image/png');
+                
+                // Отправляем данные в бот
+                Telegram.WebApp.sendData(imageData);
+                
+                // Показываем успех
+                showStatus('✅ Подпись отправлена!', 'success');
+                
+                // Закрываем Web App через секунду
+                setTimeout(() => {
+                    Telegram.WebApp.close();
+                }, 500);
+                
+            } catch (error) {
+                console.error('Error:', error);
+                showStatus('❌ Ошибка при отправке: ' + error.message, 'error');
+            }
         }
         
         // Регистрация обработчиков событий
@@ -245,7 +274,8 @@
         // Готовность Web App
         Telegram.WebApp.ready();
         Telegram.WebApp.expand();
-        Telegram.WebApp.enableClosingConfirmation(); // Подтверждение при закрытии
+        
+        console.log('Web App готов к работе');
     </script>
 </body>
 </html>

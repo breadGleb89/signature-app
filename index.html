@@ -101,7 +101,7 @@
         
         <div class="controls">
             <button class="clear-btn" onclick="clearCanvas()">🗑 Очистить</button>
-            <button onclick="saveSignature()">✅ Сохранить</button>
+            <button onclick="saveSignature()">✅ Сохранить подпись</button>
         </div>
         
         <div class="info">
@@ -131,12 +131,10 @@
             let clientX, clientY;
             
             if (e.touches) {
-                // Touch событие
                 clientX = e.touches[0].clientX;
                 clientY = e.touches[0].clientY;
                 e.preventDefault();
             } else {
-                // Mouse событие
                 clientX = e.clientX;
                 clientY = e.clientY;
             }
@@ -180,6 +178,14 @@
         function clearCanvas() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             ctx.beginPath();
+            
+            // Показываем уведомление об очистке
+            const preview = document.getElementById('preview');
+            preview.innerHTML = 'Canvas очищен';
+            preview.style.color = 'var(--tg-theme-hint-color)';
+            setTimeout(() => {
+                preview.innerHTML = '';
+            }, 1000);
         }
         
         function saveSignature() {
@@ -203,9 +209,16 @@
                 return;
             }
             
+            // Показываем уведомление о сохранении
+            const preview = document.getElementById('preview');
+            preview.innerHTML = '📤 Отправка подписи...';
+            preview.style.color = 'green';
+            
             // Отправляем данные в бот
             const imageData = canvas.toDataURL('image/png');
             Telegram.WebApp.sendData(imageData);
+            
+            // Закрываем Web App после отправки
             Telegram.WebApp.close();
         }
         
@@ -226,12 +239,13 @@
             }
         }, { passive: false });
         
+        // Устанавливаем цвет кнопки в зависимости от темы Telegram
+        document.body.style.backgroundColor = 'var(--tg-theme-bg-color)';
+        
         // Готовность Web App
         Telegram.WebApp.ready();
         Telegram.WebApp.expand();
-        
-        // Устанавливаем цвет кнопки в зависимости от темы Telegram
-        document.body.style.backgroundColor = 'var(--tg-theme-bg-color)';
+        Telegram.WebApp.enableClosingConfirmation(); // Подтверждение при закрытии
     </script>
 </body>
 </html>

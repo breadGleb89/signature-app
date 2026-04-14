@@ -186,19 +186,40 @@
             ctx.beginPath();
             ctx.moveTo(pos.x, pos.y);
         }
+
+
+        function saveSignature() {
+    // ... проверка на пустой canvas ...
+            try {
+                const imageData = canvas.toDataURL('image/png');        
+        // Проверка, что Telegram Web App API доступен
+                if (typeof Telegram === 'undefined' || !Telegram.WebApp) {
+                    showStatus('❌ Telegram Web App API не доступен', 'error');
+                    return;
+                }
+                // Отправляем данные
+                Telegram.WebApp.sendData(imageData);
+                showStatus('✅ Подпись отправлена!', 'success');        
+        // Закрываем Web App
+                setTimeout(() => {
+                    Telegram.WebApp.close();
+                }, 500);        
+            } catch (error) {
+                console.error('Error:', error);
+                showStatus('❌ Ошибка: ' + error.message, 'error');
+            }
+        }   
         
         function stopDrawing(e) {
             drawing = false;
             ctx.beginPath();
             e.preventDefault();
-        }
-        
+        }        
         function clearCanvas() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             ctx.beginPath();
             showStatus('Canvas очищен', 'info');
-        }
-        
+        }        
         function showStatus(message, type) {
             const statusDiv = document.getElementById('status');
             statusDiv.textContent = message;

@@ -1,65 +1,194 @@
-async def handle_webapp_data(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Обработка данных из Web App"""
-    user_id = update.effective_user.id
-    logger.info(f"=== ПОЛУЧЕНЫ ДАННЫЕ ОТ WEB APP от пользователя {user_id} ===")
-    
-    if not update.message.web_app_data:
-        logger.error("Нет web_app_data в сообщении")
-        await update.message.reply_text("❌ Ошибка: данные не получены")
-        return
-    
-    data = update.message.web_app_data.data
-    logger.info(f"Длина данных: {len(data)}")
-    
-    if not data:
-        logger.error("Пустые данные")
-        await update.message.reply_text("❌ Ошибка: получены пустые данные")
-        return
-    
-    # Проверяем, что это изображение (начинается с data:image)
-    if data.startswith('data:image'):
-        logger.info("Получено изображение подписи!")
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Электронная подпись</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: var(--tg-theme-bg-color);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        .container { max-width: 500px; margin: 0 auto; }
+        .title { text-align: center; margin-bottom: 20px; color: var(--tg-theme-text-color); }
+        .canvas-wrapper {
+            background: white;
+            border-radius: 16px;
+            padding: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        canvas {
+            display: block;
+            width: 100%;
+            height: auto;
+            background: white;
+            border-radius: 8px;
+            cursor: crosshair;
+            border: 1px solid #ddd;
+        }
+        .buttons { display: flex; gap: 12px; margin-bottom: 20px; }
+        button {
+            flex: 1;
+            background: var(--tg-theme-button-color);
+            color: var(--tg-theme-button-text-color);
+            border: none;
+            padding: 14px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+        }
+        .clear-btn { background: var(--tg-theme-secondary-bg-color); color: var(--tg-theme-text-color); }
+        .info { text-align: center; color: var(--tg-theme-hint-color); font-size: 13px; margin-top: 20px; }
+        .status { text-align: center; font-size: 14px; padding: 10px; margin-top: 10px; border-radius: 8px; }
+        .success { background: rgba(0,200,0,0.2); color: #00cc00; }
+        .error { background: rgba(200,0,0,0.2); color: #ff4444; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h3 class="title">✍️ Электронная подпись</h3>
         
-        try:
-            import base64
-            from io import BytesIO
-            from PIL import Image
+        <div class="canvas-wrapper">
+            <canvas id="signatureCanvas" width="300" height="150"></canvas>
+        </div>
+        
+        <div class="buttons">
+            <button class="clear-btn" onclick="clearCanvas()">🗑 Очистить</button>
+            <button onclick="saveSignature()">✅ Сохранить подпись</button>
+        </div>
+        
+        <div class="info">
+            Нарисуйте вашу подпись пальцем или мышкой
+        </div>
+        
+        <div id="status" class="status"></div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('signatureCanvas');
+        const ctx = canvas.getContext('2d');
+        let drawing = false;
+        
+        ctx.lineWidth = 2;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.strokeStyle = '#000000';
+        
+        function getCoordinates(e) {
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
             
-            # Извлекаем base64 данные
-            if ',' in data:
-                image_data = data.split(',')[1]
-            else:
-                image_data = data
+            let clientX, clientY;
+            if (e.touches) {
+                clientX = e.touches[0].clientX;
+                clientY = e.touches[0].clientY;
+                e.preventDefault();
+            } else {
+                clientX = e.clientX;
+                clientY = e.clientY;
+            }
             
-            image_bytes = base64.b64decode(image_data)
-            logger.info(f"Размер изображения: {len(image_bytes)} байт")
+            let x = (clientX - rect.left) * scaleX;
+            let y = (clientY - rect.top) * scaleY;
+            x = Math.max(0, Math.min(x, canvas.width));
+            y = Math.max(0, Math.min(y, canvas.height));
+            return { x, y };
+        }
+        
+        function startDrawing(e) {
+            drawing = true;
+            const pos = getCoordinates(e);
+            ctx.beginPath();
+            ctx.moveTo(pos.x, pos.y);
+            ctx.lineTo(pos.x, pos.y);
+            ctx.stroke();
+            e.preventDefault();
+        }
+        
+        function draw(e) {
+            if (!drawing) return;
+            e.preventDefault();
+            const pos = getCoordinates(e);
+            ctx.lineTo(pos.x, pos.y);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(pos.x, pos.y);
+        }
+        
+        function stopDrawing(e) {
+            drawing = false;
+            ctx.beginPath();
+            if (e) e.preventDefault();
+        }
+        
+        function clearCanvas() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.beginPath();
+            showStatus('Очищено', 'success');
+        }
+        
+        function showStatus(msg, type) {
+            const div = document.getElementById('status');
+            div.textContent = msg;
+            div.className = `status ${type}`;
+            setTimeout(() => {
+                if (div.textContent === msg) div.textContent = '';
+            }, 2000);
+        }
+        
+        function isCanvasEmpty() {
+            const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+            for (let i = 3; i < pixels.length; i += 4) {
+                if (pixels[i] > 0) return false;
+            }
+            return true;
+        }
+        
+        function saveSignature() {
+            if (isCanvasEmpty()) {
+                showStatus('⚠️ Нарисуйте подпись!', 'error');
+                return;
+            }
             
-            # Сохраняем изображение
-            with open(f"signature_{user_id}.png", "wb") as f:
-                f.write(image_bytes)
+            showStatus('📤 Отправка...', 'success');
             
-            # Вставляем в Excel (если нужно)
-            try:
-                from openpyxl import load_workbook
-                from openpyxl.drawing.image import Image as XLImage
+            try {
+                // Получаем изображение в максимально сжатом виде
+                const imageData = canvas.toDataURL('image/jpeg', 0.5);
+                console.log('Размер данных:', imageData.length, 'символов');
                 
-                wb = load_workbook("template.xlsx")
-                ws = wb.active
+                if (imageData.length > 4000000) {
+                    showStatus('❌ Изображение слишком большое!', 'error');
+                    return;
+                }
                 
-                img = XLImage(BytesIO(image_bytes))
-                img.width = 150
-                img.height = 75
-                ws.add_image(img, "F49")
-                wb.save("template.xlsx")
-                
-                await update.message.reply_text("✅ Подпись добавлена в Excel (ячейка F49)!")
-            except Exception as e:
-                logger.error(f"Ошибка Excel: {e}")
-                await update.message.reply_text(f"✅ Изображение сохранено как signature_{user_id}.png")
-                
-        except Exception as e:
-            logger.error(f"Ошибка обработки: {e}")
-            await update.message.reply_text(f"❌ Ошибка обработки: {e}")
-    else:
-        logger.info(f"Получены текстовые данные: {data[:100]}")
-        await update.message.reply_text(f"✅ Получены данные: {data[:100]}...")
+                Telegram.WebApp.sendData(imageData);
+                showStatus('✅ Отправлено!', 'success');
+                setTimeout(() => Telegram.WebApp.close(), 500);
+            } catch (error) {
+                console.error('Ошибка:', error);
+                showStatus('❌ Ошибка: ' + error.message, 'error');
+            }
+        }
+        
+        canvas.addEventListener('mousedown', startDrawing);
+        canvas.addEventListener('mousemove', draw);
+        canvas.addEventListener('mouseup', stopDrawing);
+        canvas.addEventListener('mouseleave', stopDrawing);
+        canvas.addEventListener('touchstart', startDrawing);
+        canvas.addEventListener('touchmove', draw);
+        canvas.addEventListener('touchend', stopDrawing);
+        
+        Telegram.WebApp.ready();
+        Telegram.WebApp.expand();
+        console.log('Web App готов');
+    </script>
+</body>
+</html>

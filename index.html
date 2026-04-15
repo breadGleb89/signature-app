@@ -6,26 +6,15 @@
     <title>Электронная подпись</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             background: var(--tg-theme-bg-color);
             font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
             padding: 20px;
             min-height: 100vh;
         }
-        .container {
-            max-width: 500px;
-            margin: 0 auto;
-        }
-        h3 {
-            text-align: center;
-            margin-bottom: 20px;
-            color: var(--tg-theme-text-color);
-        }
+        .container { max-width: 500px; margin: 0 auto; }
+        h3 { text-align: center; margin-bottom: 20px; color: var(--tg-theme-text-color); }
         .canvas-wrapper {
             background: white;
             border-radius: 16px;
@@ -40,7 +29,7 @@
             background: white;
             border-radius: 8px;
             cursor: crosshair;
-            border: 1px solid #ddd;
+            border: 1px solid #ccc;
         }
         .buttons {
             display: flex;
@@ -75,14 +64,8 @@
             margin-top: 10px;
             border-radius: 8px;
         }
-        .success {
-            background: rgba(0,200,0,0.2);
-            color: #00cc00;
-        }
-        .error {
-            background: rgba(200,0,0,0.2);
-            color: #ff4444;
-        }
+        .success { background: rgba(0,200,0,0.2); color: #00cc00; }
+        .error { background: rgba(200,0,0,0.2); color: #ff4444; }
     </style>
 </head>
 <body>
@@ -90,26 +73,29 @@
         <h3>✍️ Электронная подпись</h3>
         
         <div class="canvas-wrapper">
-            <canvas id="signatureCanvas" width="400" height="200"></canvas>
+            <canvas id="signatureCanvas" width="500" height="200"></canvas>
         </div>
         
         <div class="buttons">
             <button class="clear-btn" onclick="clearCanvas()">🗑 Очистить</button>
-            <button onclick="saveAndShare()">✅ Сохранить и отправить</button>
+            <button onclick="saveAndSend()">📤 Сохранить и отправить</button>
         </div>
         
         <div class="info">
-            Нарисуйте подпись и нажмите "Сохранить и отправить"
+            ✍️ Нарисуйте подпись черным цветом на белом фоне
         </div>
         
         <div id="status" class="status"></div>
     </div>
 
     <script>
-        // Настройки canvas
         const canvas = document.getElementById('signatureCanvas');
         const ctx = canvas.getContext('2d');
         let drawing = false;
+        
+        // Заливаем белым фоном
+        ctx.fillStyle = 'white';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
         
         // Настройки рисования
         ctx.lineWidth = 2.5;
@@ -117,7 +103,6 @@
         ctx.lineJoin = 'round';
         ctx.strokeStyle = '#000000';
         
-        // Получение координат
         function getCoordinates(e) {
             const rect = canvas.getBoundingClientRect();
             const scaleX = canvas.width / rect.width;
@@ -143,7 +128,6 @@
             return { x, y };
         }
         
-        // Начало рисования
         function startDrawing(e) {
             drawing = true;
             const pos = getCoordinates(e);
@@ -154,7 +138,6 @@
             e.preventDefault();
         }
         
-        // Рисование
         function draw(e) {
             if (!drawing) return;
             e.preventDefault();
@@ -165,21 +148,20 @@
             ctx.moveTo(pos.x, pos.y);
         }
         
-        // Конец рисования
         function stopDrawing(e) {
             drawing = false;
             ctx.beginPath();
             if (e) e.preventDefault();
         }
         
-        // Очистка canvas
         function clearCanvas() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = 'white';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
             ctx.beginPath();
             showStatus('Очищено', 'success');
         }
         
-        // Показать статус
         function showStatus(msg, type) {
             const div = document.getElementById('status');
             div.textContent = msg;
@@ -192,17 +174,20 @@
             }, 2000);
         }
         
-        // Проверка, пустой ли canvas
         function isCanvasEmpty() {
-            const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
-            for (let i = 3; i < pixels.length; i += 4) {
-                if (pixels[i] > 0) return false;
+            // Проверяем, есть ли черные пиксели
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const pixels = imageData.data;
+            for (let i = 0; i < pixels.length; i += 4) {
+                // Если пиксель не белый (R,G,B не равны 255)
+                if (pixels[i] < 250 || pixels[i+1] < 250 || pixels[i+2] < 250) {
+                    return false;
+                }
             }
             return true;
         }
         
-        // Сохранить и поделиться
-        function saveAndShare() {
+        function saveAndSend() {
             if (isCanvasEmpty()) {
                 showStatus('⚠️ Нарисуйте подпись!', 'error');
                 return;
@@ -210,12 +195,14 @@
             
             showStatus('📤 Подготовка...', 'success');
             
-            // Уменьшаем размер
+            // Уменьшаем размер для отправки
             const tempCanvas = document.createElement('canvas');
             const tempCtx = tempCanvas.getContext('2d');
             tempCanvas.width = 400;
-            tempCanvas.height = 200;
-            tempCtx.drawImage(canvas, 0, 0, 400, 200);
+            tempCanvas.height = 160;
+            tempCtx.fillStyle = 'white';
+            tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+            tempCtx.drawImage(canvas, 0, 0, tempCanvas.width, tempCanvas.height);
             
             tempCanvas.toBlob(function(blob) {
                 const file = new File([blob], "signature.jpg", { type: "image/jpeg" });
@@ -235,12 +222,11 @@
                 } else {
                     downloadImage(tempCanvas);
                 }
-            }, 'image/jpeg', 0.8);
+            }, 'image/jpeg', 0.9);
         }
         
-        // Скачать изображение
         function downloadImage(canvas) {
-            const url = canvas.toDataURL('image/jpeg', 0.8);
+            const url = canvas.toDataURL('image/jpeg', 0.9);
             const link = document.createElement('a');
             link.download = 'signature.jpg';
             link.href = url;
@@ -250,7 +236,6 @@
             setTimeout(() => Telegram.WebApp.close(), 2000);
         }
         
-        // Обработчики событий
         canvas.addEventListener('mousedown', startDrawing);
         canvas.addEventListener('mousemove', draw);
         canvas.addEventListener('mouseup', stopDrawing);
@@ -260,18 +245,14 @@
         canvas.addEventListener('touchmove', draw);
         canvas.addEventListener('touchend', stopDrawing);
         
-        // Предотвращаем скролл при рисовании
         canvas.addEventListener('touchmove', (e) => {
-            if (drawing) {
-                e.preventDefault();
-            }
+            if (drawing) e.preventDefault();
         }, { passive: false });
         
-        // Инициализация Web App
         Telegram.WebApp.ready();
         Telegram.WebApp.expand();
         
-        console.log('Web App готов к работе');
+        console.log('Web App готов');
     </script>
 </body>
 </html>

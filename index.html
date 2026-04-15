@@ -3,122 +3,283 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Подпись</title>
+    <title>Электронная подпись</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-        body { font-family: system-ui; padding: 20px; text-align: center; }
-        canvas { border: 1px solid #ccc; cursor: crosshair; background: white; margin: 20px 0; }
-        button { margin: 5px; padding: 12px 24px; border-radius: 12px; border: none; background: #0088cc; color: white; }
-        .clear { background: #999; }
-        .status { margin-top: 20px; color: #666; }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+        body {
+            background: var(--tg-theme-bg-color);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 500px;
+            margin: 0 auto;
+        }
+        h3 {
+            text-align: center;
+            margin-bottom: 20px;
+            color: var(--tg-theme-text-color);
+        }
+        .canvas-wrapper {
+            background: white;
+            border-radius: 16px;
+            padding: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        canvas {
+            display: block;
+            width: 100%;
+            height: auto;
+            background: white;
+            border-radius: 8px;
+            cursor: crosshair;
+            border: 1px solid #ddd;
+            touch-action: none;
+        }
+        .buttons {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        button {
+            flex: 1;
+            background: var(--tg-theme-button-color);
+            color: var(--tg-theme-button-text-color);
+            border: none;
+            padding: 14px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+        button:active {
+            opacity: 0.7;
+        }
+        .clear-btn {
+            background: var(--tg-theme-secondary-bg-color);
+            color: var(--tg-theme-text-color);
+        }
+        .info {
+            text-align: center;
+            color: var(--tg-theme-hint-color);
+            font-size: 13px;
+            margin-top: 20px;
+        }
+        .status {
+            text-align: center;
+            font-size: 14px;
+            padding: 10px;
+            margin-top: 10px;
+            border-radius: 8px;
+        }
+        .status-success {
+            background: rgba(0,200,0,0.2);
+            color: #00cc00;
+        }
+        .status-error {
+            background: rgba(200,0,0,0.2);
+            color: #ff4444;
+        }
+        .status-loading {
+            background: rgba(0,100,200,0.2);
+            color: #0088ff;
+        }
     </style>
 </head>
 <body>
-    <h3>✍️ Электронная подпись</h3>
-    <canvas id="sigCanvas" width="300" height="120"></canvas><br>
-    <button class="clear" onclick="clearCanvas()">Очистить</button>
-    <button onclick="sendSignature()">✅ Отправить подпись</button>
-    <div id="status" class="status"></div>
+    <div class="container">
+        <h3>✍️ Электронная подпись</h3>
+        
+        <div class="canvas-wrapper">
+            <canvas id="signatureCanvas" width="400" height="200"></canvas>
+        </div>
+        
+        <div class="buttons">
+            <button class="clear-btn" onclick="clearCanvas()">🗑 Очистить</button>
+            <button onclick="saveSignature()">✅ Сохранить подпись</button>
+        </div>
+        
+        <div class="info">
+            ✍️ Нарисуйте подпись и нажмите «Сохранить»
+        </div>
+        
+        <div id="status" class="status"></div>
+    </div>
 
     <script>
-        const canvas = document.getElementById('sigCanvas');
+        // ⚠️ ВАЖНО: ЗАМЕНИТЕ НА ВАШ URL ОТ RENDER
+        const SERVER_URL = "https://signature-server.onrender.com/save_signature";
+        
+        const canvas = document.getElementById('signatureCanvas');
         const ctx = canvas.getContext('2d');
         let drawing = false;
-
+        
+        // Белый фон
         ctx.fillStyle = 'white';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.strokeStyle = 'black';
-        ctx.lineWidth = 2;
-
-        function getCoords(e) {
+        
+        // Настройки рисования
+        ctx.lineWidth = 2.5;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.strokeStyle = '#000000';
+        
+        function getCoordinates(e) {
             const rect = canvas.getBoundingClientRect();
             const scaleX = canvas.width / rect.width;
             const scaleY = canvas.height / rect.height;
-            let x, y;
+            
+            let clientX, clientY;
+            
             if (e.touches) {
-                x = (e.touches[0].clientX - rect.left) * scaleX;
-                y = (e.touches[0].clientY - rect.top) * scaleY;
+                clientX = e.touches[0].clientX;
+                clientY = e.touches[0].clientY;
                 e.preventDefault();
             } else {
-                x = (e.clientX - rect.left) * scaleX;
-                y = (e.clientY - rect.top) * scaleY;
+                clientX = e.clientX;
+                clientY = e.clientY;
             }
-            return { x: Math.min(Math.max(0, x), canvas.width), y: Math.min(Math.max(0, y), canvas.height) };
+            
+            let x = (clientX - rect.left) * scaleX;
+            let y = (clientY - rect.top) * scaleY;
+            
+            x = Math.max(0, Math.min(x, canvas.width));
+            y = Math.max(0, Math.min(y, canvas.height));
+            
+            return { x, y };
         }
-
-        function start(e) { drawing = true; ctx.beginPath(); const p = getCoords(e); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x, p.y); ctx.stroke(); e.preventDefault(); }
-        function draw(e) { if (!drawing) return; e.preventDefault(); const p = getCoords(e); ctx.lineTo(p.x, p.y); ctx.stroke(); ctx.beginPath(); ctx.moveTo(p.x, p.y); }
-        function stop(e) { drawing = false; ctx.beginPath(); e.preventDefault(); }
-
+        
+        function startDrawing(e) {
+            drawing = true;
+            const pos = getCoordinates(e);
+            ctx.beginPath();
+            ctx.moveTo(pos.x, pos.y);
+            ctx.lineTo(pos.x, pos.y);
+            ctx.stroke();
+            e.preventDefault();
+        }
+        
+        function draw(e) {
+            if (!drawing) return;
+            e.preventDefault();
+            const pos = getCoordinates(e);
+            ctx.lineTo(pos.x, pos.y);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(pos.x, pos.y);
+        }
+        
+        function stopDrawing(e) {
+            drawing = false;
+            ctx.beginPath();
+            if (e) e.preventDefault();
+        }
+        
         function clearCanvas() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             ctx.fillStyle = 'white';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
-            document.getElementById('status').innerText = 'Очищено';
+            ctx.beginPath();
+            showStatus('Очищено', 'success');
         }
-
+        
+        function showStatus(msg, type) {
+            const div = document.getElementById('status');
+            div.textContent = msg;
+            div.className = `status status-${type}`;
+            setTimeout(() => {
+                if (div.textContent === msg) {
+                    div.textContent = '';
+                    div.className = 'status';
+                }
+            }, 2000);
+        }
+        
         function isCanvasEmpty() {
-            const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-            for (let i = 0; i < imgData.data.length; i += 4) {
-                if (imgData.data[i] < 250) return false;
+            const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+            for (let i = 3; i < pixels.length; i += 4) {
+                if (pixels[i] > 0) return false;
             }
             return true;
         }
-
-        async function sendSignature() {
+        
+        async function saveSignature() {
             if (isCanvasEmpty()) {
-                document.getElementById('status').innerText = '⚠️ Сначала нарисуйте подпись';
+                showStatus('⚠️ Нарисуйте подпись!', 'error');
                 return;
             }
-            document.getElementById('status').innerText = '📤 Загрузка...';
-
-            // Уменьшаем размер
-            const tempCanvas = document.createElement('canvas');
-            tempCanvas.width = 300;
-            tempCanvas.height = 120;
-            const tempCtx = tempCanvas.getContext('2d');
-            tempCtx.fillStyle = 'white';
-            tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
-            tempCtx.drawImage(canvas, 0, 0, tempCanvas.width, tempCanvas.height);
-
-            // Получаем Blob
-            const blob = await new Promise(resolve => tempCanvas.toBlob(resolve, 'image/jpeg', 0.8));
             
-            // Загружаем на Telegraph
-            const formData = new FormData();
-            formData.append('file', blob, 'signature.jpg');
+            showStatus('📤 Отправка...', 'loading');
             
             try {
-                const uploadRes = await fetch('https://telegra.ph/upload', {
+                // Уменьшаем размер изображения
+                const tempCanvas = document.createElement('canvas');
+                const tempCtx = tempCanvas.getContext('2d');
+                tempCanvas.width = 350;
+                tempCanvas.height = 140;
+                tempCtx.fillStyle = 'white';
+                tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+                tempCtx.drawImage(canvas, 0, 0, tempCanvas.width, tempCanvas.height);
+                
+                const imageData = tempCanvas.toDataURL('image/jpeg', 0.8);
+                const userId = Telegram.WebApp.initDataUnsafe.user?.id || 0;
+                
+                const response = await fetch(SERVER_URL, {
                     method: 'POST',
-                    body: formData
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        user_id: userId,
+                        signature: imageData
+                    })
                 });
-                const uploadData = await uploadRes.json();
-                if (uploadData && uploadData[0] && uploadData[0].src) {
-                    const imageUrl = 'https://telegra.ph' + uploadData[0].src;
-                    // Отправляем ссылку боту через sendData
-                    Telegram.WebApp.sendData(imageUrl);
-                    document.getElementById('status').innerText = '✅ Отправлено!';
-                    setTimeout(() => Telegram.WebApp.close(), 500);
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    showStatus('✅ Подпись сохранена!', 'success');
+                    setTimeout(() => Telegram.WebApp.close(), 1000);
                 } else {
-                    document.getElementById('status').innerText = '❌ Ошибка загрузки';
+                    showStatus('❌ Ошибка: ' + (result.error || 'Неизвестная ошибка'), 'error');
                 }
-            } catch (err) {
-                console.error(err);
-                document.getElementById('status').innerText = '❌ Ошибка соединения';
+            } catch (error) {
+                console.error('Ошибка:', error);
+                showStatus('❌ Ошибка соединения с сервером', 'error');
             }
         }
-
-        canvas.addEventListener('mousedown', start);
+        
+        // Обработчики событий
+        canvas.addEventListener('mousedown', startDrawing);
         canvas.addEventListener('mousemove', draw);
-        canvas.addEventListener('mouseup', stop);
-        canvas.addEventListener('mouseleave', stop);
-        canvas.addEventListener('touchstart', start);
+        canvas.addEventListener('mouseup', stopDrawing);
+        canvas.addEventListener('mouseleave', stopDrawing);
+        canvas.addEventListener('touchstart', startDrawing);
         canvas.addEventListener('touchmove', draw);
-        canvas.addEventListener('touchend', stop);
-
+        canvas.addEventListener('touchend', stopDrawing);
+        
+        // Предотвращаем скролл при рисовании
+        canvas.addEventListener('touchmove', (e) => {
+            if (drawing) {
+                e.preventDefault();
+            }
+        }, { passive: false });
+        
+        // Инициализация Web App
         Telegram.WebApp.ready();
         Telegram.WebApp.expand();
+        
+        console.log('Web App готов, сервер: ' + SERVER_URL);
     </script>
 </body>
 </html>

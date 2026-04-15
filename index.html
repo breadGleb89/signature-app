@@ -24,13 +24,12 @@
         const canvas = document.getElementById('sigCanvas');
         const ctx = canvas.getContext('2d');
         let drawing = false;
-        
-        // Белый фон
+
         ctx.fillStyle = 'white';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         ctx.strokeStyle = 'black';
         ctx.lineWidth = 2;
-        
+
         function getCoords(e) {
             const rect = canvas.getBoundingClientRect();
             const scaleX = canvas.width / rect.width;
@@ -46,18 +45,18 @@
             }
             return { x: Math.min(Math.max(0, x), canvas.width), y: Math.min(Math.max(0, y), canvas.height) };
         }
-        
+
         function start(e) { drawing = true; ctx.beginPath(); const p = getCoords(e); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x, p.y); ctx.stroke(); e.preventDefault(); }
         function draw(e) { if (!drawing) return; e.preventDefault(); const p = getCoords(e); ctx.lineTo(p.x, p.y); ctx.stroke(); ctx.beginPath(); ctx.moveTo(p.x, p.y); }
         function stop(e) { drawing = false; ctx.beginPath(); e.preventDefault(); }
-        
+
         function clearCanvas() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             ctx.fillStyle = 'white';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             document.getElementById('status').innerText = 'Очищено';
         }
-        
+
         function isCanvasEmpty() {
             const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
             for (let i = 0; i < imgData.data.length; i += 4) {
@@ -65,36 +64,35 @@
             }
             return true;
         }
-        
+
         function sendSignature() {
             if (isCanvasEmpty()) {
                 document.getElementById('status').innerText = '⚠️ Сначала нарисуйте подпись';
                 return;
             }
             document.getElementById('status').innerText = '📤 Отправка...';
-            
-            // Супер-сжатие: canvas 200x80, WebP качество 0.3
+
+            // Уменьшаем разрешение для ускорения
             const tempCanvas = document.createElement('canvas');
-            tempCanvas.width = 200;
-            tempCanvas.height = 80;
+            tempCanvas.width = 250;
+            tempCanvas.height = 100;
             const tempCtx = tempCanvas.getContext('2d');
             tempCtx.fillStyle = 'white';
             tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
             tempCtx.drawImage(canvas, 0, 0, tempCanvas.width, tempCanvas.height);
-            
+
+            // Отправляем как JPEG с качеством 0.8 (чтобы избежать WebP)
             tempCanvas.toBlob(function(blob) {
                 const reader = new FileReader();
                 reader.onload = function() {
-                    const base64 = reader.result;
-                    console.log('Размер base64:', base64.length);
-                    Telegram.WebApp.sendData(base64);
+                    Telegram.WebApp.sendData(reader.result);
                     document.getElementById('status').innerText = '✅ Отправлено!';
                     setTimeout(() => Telegram.WebApp.close(), 500);
                 };
                 reader.readAsDataURL(blob);
-            }, 'image/jpeg', 0.7);
+            }, 'image/jpeg', 0.8);
         }
-        
+
         canvas.addEventListener('mousedown', start);
         canvas.addEventListener('mousemove', draw);
         canvas.addEventListener('mouseup', stop);
@@ -102,7 +100,7 @@
         canvas.addEventListener('touchstart', start);
         canvas.addEventListener('touchmove', draw);
         canvas.addEventListener('touchend', stop);
-        
+
         Telegram.WebApp.ready();
         Telegram.WebApp.expand();
     </script>

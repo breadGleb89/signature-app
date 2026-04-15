@@ -6,28 +6,15 @@
     <title>Электронная подпись</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            user-select: none;
-            -webkit-tap-highlight-color: transparent;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             background: var(--tg-theme-bg-color);
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
             padding: 20px;
             min-height: 100vh;
         }
-        .container {
-            max-width: 500px;
-            margin: 0 auto;
-        }
-        h3 {
-            text-align: center;
-            margin-bottom: 20px;
-            color: var(--tg-theme-text-color);
-        }
+        .container { max-width: 500px; margin: 0 auto; }
+        h3 { text-align: center; margin-bottom: 20px; color: var(--tg-theme-text-color); }
         .canvas-wrapper {
             background: white;
             border-radius: 16px;
@@ -42,14 +29,10 @@
             background: white;
             border-radius: 8px;
             cursor: crosshair;
-            border: 1px solid #ddd;
+            border: 1px solid #ccc;
             touch-action: none;
         }
-        .buttons {
-            display: flex;
-            gap: 12px;
-            margin-bottom: 20px;
-        }
+        .buttons { display: flex; gap: 12px; margin-bottom: 20px; }
         button {
             flex: 1;
             background: var(--tg-theme-button-color);
@@ -60,10 +43,6 @@
             font-size: 16px;
             font-weight: 500;
             cursor: pointer;
-            transition: opacity 0.2s;
-        }
-        button:active {
-            opacity: 0.7;
         }
         .clear-btn {
             background: var(--tg-theme-secondary-bg-color);
@@ -82,18 +61,9 @@
             margin-top: 10px;
             border-radius: 8px;
         }
-        .status-success {
-            background: rgba(0,200,0,0.2);
-            color: #00cc00;
-        }
-        .status-error {
-            background: rgba(200,0,0,0.2);
-            color: #ff4444;
-        }
-        .status-loading {
-            background: rgba(0,100,200,0.2);
-            color: #0088ff;
-        }
+        .status-success { background: rgba(0,200,0,0.2); color: #00cc00; }
+        .status-error { background: rgba(200,0,0,0.2); color: #ff4444; }
+        .status-loading { background: rgba(0,100,200,0.2); color: #0088ff; }
     </style>
 </head>
 <body>
@@ -117,7 +87,7 @@
     </div>
 
     <script>
-        // ⚠️ ВАЖНО: ЗАМЕНИТЕ НА ВАШ URL ОТ RENDER
+        // ВАШ URL С RENDER (проверьте, что он правильный)
         const SERVER_URL = "https://signature-server-87mz.onrender.com";
         
         const canvas = document.getElementById('signatureCanvas');
@@ -221,19 +191,23 @@
             
             showStatus('📤 Отправка...', 'loading');
             
+            // Уменьшаем размер
+            const tempCanvas = document.createElement('canvas');
+            const tempCtx = tempCanvas.getContext('2d');
+            tempCanvas.width = 350;
+            tempCanvas.height = 140;
+            tempCtx.fillStyle = 'white';
+            tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+            tempCtx.drawImage(canvas, 0, 0, tempCanvas.width, tempCanvas.height);
+            
+            const imageData = tempCanvas.toDataURL('image/jpeg', 0.8);
+            const userId = Telegram.WebApp.initDataUnsafe.user?.id || 0;
+            
+            console.log('Sending to server:', SERVER_URL);
+            console.log('User ID:', userId);
+            console.log('Image size:', imageData.length);
+            
             try {
-                // Уменьшаем размер изображения
-                const tempCanvas = document.createElement('canvas');
-                const tempCtx = tempCanvas.getContext('2d');
-                tempCanvas.width = 350;
-                tempCanvas.height = 140;
-                tempCtx.fillStyle = 'white';
-                tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
-                tempCtx.drawImage(canvas, 0, 0, tempCanvas.width, tempCanvas.height);
-                
-                const imageData = tempCanvas.toDataURL('image/jpeg', 0.8);
-                const userId = Telegram.WebApp.initDataUnsafe.user?.id || 0;
-                
                 const response = await fetch(SERVER_URL, {
                     method: 'POST',
                     headers: {
@@ -245,7 +219,9 @@
                     })
                 });
                 
+                console.log('Response status:', response.status);
                 const result = await response.json();
+                console.log('Response:', result);
                 
                 if (response.ok) {
                     showStatus('✅ Подпись сохранена!', 'success');
@@ -254,12 +230,11 @@
                     showStatus('❌ Ошибка: ' + (result.error || 'Неизвестная ошибка'), 'error');
                 }
             } catch (error) {
-                console.error('Ошибка:', error);
+                console.error('Fetch error:', error);
                 showStatus('❌ Ошибка соединения с сервером', 'error');
             }
         }
         
-        // Обработчики событий
         canvas.addEventListener('mousedown', startDrawing);
         canvas.addEventListener('mousemove', draw);
         canvas.addEventListener('mouseup', stopDrawing);
@@ -268,18 +243,16 @@
         canvas.addEventListener('touchmove', draw);
         canvas.addEventListener('touchend', stopDrawing);
         
-        // Предотвращаем скролл при рисовании
         canvas.addEventListener('touchmove', (e) => {
             if (drawing) {
                 e.preventDefault();
             }
         }, { passive: false });
         
-        // Инициализация Web App
         Telegram.WebApp.ready();
         Telegram.WebApp.expand();
         
-        console.log('Web App готов, сервер: ' + SERVER_URL);
+        console.log('Web App ready, server URL:', SERVER_URL);
     </script>
 </body>
 </html>

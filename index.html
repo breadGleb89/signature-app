@@ -2,17 +2,31 @@
 <html>
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
     <h3>Тест Web App</h3>
     <button onclick="sendTest()">Отправить тестовые данные</button>
+    <div id="status"></div>
     <script>
         function sendTest() {
-            Telegram.WebApp.sendData("HELLO_FROM_WEB_APP");
-            Telegram.WebApp.close();
+            const statusDiv = document.getElementById('status');
+            statusDiv.innerHTML = 'Отправка...';
+            
+            try {
+                console.log('Telegram.WebApp:', Telegram.WebApp);
+                Telegram.WebApp.sendData("TEST_DATA_123");
+                statusDiv.innerHTML = 'Отправлено!';
+                setTimeout(() => Telegram.WebApp.close(), 500);
+            } catch(e) {
+                statusDiv.innerHTML = 'Ошибка: ' + e.message;
+                console.error(e);
+            }
         }
+        
         Telegram.WebApp.ready();
+        console.log('Web App готов');
     </script>
 </body>
 </html>

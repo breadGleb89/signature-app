@@ -60,11 +60,11 @@
         
         <div class="buttons">
             <button class="clear-btn" onclick="clearCanvas()">🗑 Очистить</button>
-            <button onclick="copyAndClose()">✅ Сохранить и закрыть</button>
+            <button onclick="sendToChat()">📤 Отправить в чат</button>
         </div>
         
         <div class="info">
-            Нарисуйте подпись и нажмите "Сохранить и закрыть"
+            Нарисуйте подпись и нажмите "Отправить в чат"
         </div>
         
         <div id="status" class="status"></div>
@@ -151,33 +151,32 @@
             return true;
         }
         
-        function copyAndClose() {
+        function sendToChat() {
             if (isCanvasEmpty()) {
                 showStatus('⚠️ Нарисуйте подпись!', 'error');
                 return;
             }
             
-            showStatus('📤 Сохранение...', 'success');
+            showStatus('📤 Отправка...', 'success');
             
             try {
-                // Уменьшаем размер
+                // Уменьшаем размер для отправки
                 const tempCanvas = document.createElement('canvas');
                 const tempCtx = tempCanvas.getContext('2d');
                 tempCanvas.width = 300;
                 tempCanvas.height = 150;
                 tempCtx.drawImage(canvas, 0, 0, 300, 150);
                 
+                // Отправляем как data URL (пользователь должен будет отправить вручную)
                 const imageData = tempCanvas.toDataURL('image/jpeg', 0.8);
                 
-                // Отправляем данные (пользователь должен будет отправить их вручную)
-                // Сохраняем в localStorage
+                // Сохраняем в localStorage и показываем инструкцию
                 localStorage.setItem('signature', imageData);
                 
-                showStatus('✅ Подпись готова!', 'success');
+                showStatus('✅ Готово!', 'success');
                 
-                // Показываем инструкцию
                 setTimeout(() => {
-                    alert('Подпись сохранена!\n\nТеперь отправьте её в чат с ботом как фото:\n1. Нажмите на скриншот ниже\n2. Выберите "Сохранить изображение"\n3. Отправьте фото в чат');
+                    alert('Подпись готова!\n\nЧтобы отправить её боту:\n1. Нажмите на скриншот ниже\n2. Выберите "Сохранить изображение"\n3. Отправьте фото боту в чат');
                     Telegram.WebApp.close();
                 }, 500);
                 

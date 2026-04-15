@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html>
+<html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Подпись для документа</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Электронная подпись</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         * {
@@ -17,7 +17,7 @@
         body {
             background: var(--tg-theme-bg-color);
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-            padding: 20px;
+            padding: 16px;
             min-height: 100vh;
             display: flex;
             flex-direction: column;
@@ -27,14 +27,14 @@
             flex: 1;
             display: flex;
             flex-direction: column;
-            gap: 20px;
+            gap: 16px;
         }
         
-        .canvas-container {
+        .canvas-wrapper {
             background: white;
             border-radius: 16px;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-            padding: 10px;
+            padding: 12px;
         }
         
         canvas {
@@ -48,11 +48,10 @@
             border: 1px solid #ddd;
         }
         
-        .controls {
+        .buttons {
             display: flex;
             gap: 12px;
             justify-content: center;
-            flex-wrap: wrap;
         }
         
         button {
@@ -66,14 +65,13 @@
             cursor: pointer;
             transition: opacity 0.2s;
             flex: 1;
-            min-width: 120px;
         }
         
         button:active {
-            opacity: 0.8;
+            opacity: 0.7;
         }
         
-        .clear-btn {
+        .btn-clear {
             background: var(--tg-theme-secondary-bg-color);
             color: var(--tg-theme-text-color);
         }
@@ -81,7 +79,7 @@
         .info {
             text-align: center;
             color: var(--tg-theme-hint-color);
-            font-size: 14px;
+            font-size: 13px;
             padding: 12px;
             background: var(--tg-theme-secondary-bg-color);
             border-radius: 12px;
@@ -92,34 +90,34 @@
             font-size: 14px;
             padding: 10px;
             border-radius: 8px;
-            margin-top: 10px;
+            margin-top: 8px;
         }
         
-        .status.success {
+        .status-success {
             background: rgba(0, 200, 0, 0.2);
-            color: green;
+            color: #00cc00;
         }
         
-        .status.error {
+        .status-error {
             background: rgba(200, 0, 0, 0.2);
-            color: red;
+            color: #ff4444;
         }
         
-        .status.info {
-            background: rgba(0, 0, 200, 0.2);
-            color: blue;
+        .status-info {
+            background: rgba(0, 100, 200, 0.2);
+            color: #0088ff;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="canvas-container">
+        <div class="canvas-wrapper">
             <canvas id="signatureCanvas" width="500" height="250" style="width: 100%; height: auto; max-width: 500px; margin: 0 auto;"></canvas>
         </div>
         
-        <div class="controls">
-            <button class="clear-btn" onclick="clearCanvas()">🗑 Очистить</button>
-            <button onclick="saveSignature()">✅ Сохранить подпись</button>
+        <div class="buttons">
+            <button class="btn-clear" onclick="clearCanvas()">🗑 Очистить</button>
+            <button onclick="saveSignature()">✅ Сохранить</button>
         </div>
         
         <div class="info">
@@ -186,44 +184,23 @@
             ctx.beginPath();
             ctx.moveTo(pos.x, pos.y);
         }
-
-
-        function saveSignature() {
-    // ... проверка на пустой canvas ...
-            try {
-                const imageData = canvas.toDataURL('image/png');        
-        // Проверка, что Telegram Web App API доступен
-                if (typeof Telegram === 'undefined' || !Telegram.WebApp) {
-                    showStatus('❌ Telegram Web App API не доступен', 'error');
-                    return;
-                }
-                // Отправляем данные
-                Telegram.WebApp.sendData(imageData);
-                showStatus('✅ Подпись отправлена!', 'success');        
-        // Закрываем Web App
-                setTimeout(() => {
-                    Telegram.WebApp.close();
-                }, 500);        
-            } catch (error) {
-                console.error('Error:', error);
-                showStatus('❌ Ошибка: ' + error.message, 'error');
-            }
-        }   
         
         function stopDrawing(e) {
             drawing = false;
             ctx.beginPath();
-            e.preventDefault();
-        }        
+            if (e) e.preventDefault();
+        }
+        
         function clearCanvas() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             ctx.beginPath();
             showStatus('Canvas очищен', 'info');
-        }        
+        }
+        
         function showStatus(message, type) {
             const statusDiv = document.getElementById('status');
             statusDiv.textContent = message;
-            statusDiv.className = `status ${type}`;
+            statusDiv.className = `status status-${type}`;
             setTimeout(() => {
                 if (statusDiv.textContent === message) {
                     statusDiv.textContent = '';
@@ -232,69 +209,72 @@
             }, 3000);
         }
         
-        function saveSignature() {
-            // Проверяем, не пустой ли canvas
+        function isCanvasEmpty() {
             const pixelData = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
-            let hasPixels = false;
             for (let i = 3; i < pixelData.length; i += 4) {
                 if (pixelData[i] > 0) {
-                    hasPixels = true;
-                    break;
+                    return false;
                 }
             }
-            
-            if (!hasPixels) {
-                showStatus('⚠️ Пожалуйста, нарисуйте подпись перед сохранением!', 'error');
+            return true;
+        }
+        
+        function saveSignature() {
+            // Проверяем, не пустой ли canvas
+            if (isCanvasEmpty()) {
+                showStatus('⚠️ Нарисуйте подпись перед сохранением!', 'error');
                 return;
             }
             
-            // Показываем уведомление о сохранении
             showStatus('📤 Отправка подписи...', 'info');
             
             try {
                 // Получаем данные изображения
                 const imageData = canvas.toDataURL('image/png');
                 
-                // Отправляем данные в бот
-                Telegram.WebApp.sendData(imageData);
+                // Проверяем, что Telegram Web App доступен
+                if (typeof Telegram === 'undefined' || !Telegram.WebApp) {
+                    showStatus('❌ Ошибка: Telegram Web App не доступен', 'error');
+                    return;
+                }
                 
-                // Показываем успех
+                // Отправляем данные в бота
+                Telegram.WebApp.sendData(imageData);
                 showStatus('✅ Подпись отправлена!', 'success');
                 
-                // Закрываем Web App через секунду
+                // Закрываем Web App через 0.5 секунды
                 setTimeout(() => {
                     Telegram.WebApp.close();
                 }, 500);
                 
             } catch (error) {
-                console.error('Error:', error);
-                showStatus('❌ Ошибка при отправке: ' + error.message, 'error');
+                console.error('Save error:', error);
+                showStatus('❌ Ошибка: ' + error.message, 'error');
             }
         }
         
-        // Регистрация обработчиков событий
+        // Регистрация обработчиков событий для мыши
         canvas.addEventListener('mousedown', startDrawing);
         canvas.addEventListener('mousemove', draw);
         canvas.addEventListener('mouseup', stopDrawing);
         canvas.addEventListener('mouseleave', stopDrawing);
         
+        // Регистрация обработчиков для касаний
         canvas.addEventListener('touchstart', startDrawing);
         canvas.addEventListener('touchmove', draw);
         canvas.addEventListener('touchend', stopDrawing);
         
-        // Предотвращаем скролл при рисовании на canvas
+        // Предотвращаем скролл при рисовании
         canvas.addEventListener('touchmove', (e) => {
             if (drawing) {
                 e.preventDefault();
             }
         }, { passive: false });
         
-        // Устанавливаем цвет кнопки в зависимости от темы Telegram
-        document.body.style.backgroundColor = 'var(--tg-theme-bg-color)';
-        
-        // Готовность Web App
+        // Настройка Web App
         Telegram.WebApp.ready();
         Telegram.WebApp.expand();
+        Telegram.WebApp.enableClosingConfirmation();
         
         console.log('Web App готов к работе');
     </script>

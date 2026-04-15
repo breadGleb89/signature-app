@@ -66,6 +66,23 @@
         }
         .success { background: rgba(0,200,0,0.2); color: #00cc00; }
         .error { background: rgba(200,0,0,0.2); color: #ff4444; }
+        .preview-image {
+            display: none;
+            max-width: 100%;
+            margin-top: 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .instruction {
+            display: none;
+            background: rgba(0,100,200,0.2);
+            color: #0088ff;
+            padding: 12px;
+            border-radius: 12px;
+            margin-top: 15px;
+            text-align: center;
+            font-size: 14px;
+        }
     </style>
 </head>
 <body>
@@ -82,10 +99,12 @@
         </div>
         
         <div class="info">
-            ✍️ Нарисуйте подпись → "Сохранить на телефон" → затем отправьте файл боту
+            ✍️ Нарисуйте подпись → "Сохранить на телефон"
         </div>
         
         <div id="status" class="status"></div>
+        <img id="previewImage" class="preview-image" />
+        <div id="instruction" class="instruction"></div>
     </div>
 
     <script>
@@ -156,6 +175,10 @@
             ctx.fillStyle = 'white';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             ctx.beginPath();
+            
+            // Скрываем превью и инструкцию
+            document.getElementById('previewImage').style.display = 'none';
+            document.getElementById('instruction').style.display = 'none';
             showStatus('Очищено', 'success');
         }
         
@@ -185,7 +208,7 @@
                 return;
             }
             
-            showStatus('💾 Сохранение...', 'success');
+            showStatus('📸 Создание изображения...', 'success');
             
             // Уменьшаем размер
             const tempCanvas = document.createElement('canvas');
@@ -196,23 +219,35 @@
             tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
             tempCtx.drawImage(canvas, 0, 0, tempCanvas.width, tempCanvas.height);
             
-            // Создаем ссылку для скачивания
-            tempCanvas.toBlob(function(blob) {
-                const url = URL.createObjectURL(blob);
+            // Показываем изображение на экране
+            const imageUrl = tempCanvas.toDataURL('image/jpeg', 0.9);
+            const previewImg = document.getElementById('previewImage');
+            previewImg.src = imageUrl;
+            previewImg.style.display = 'block';
+            
+            // Показываем инструкцию
+            const instructionDiv = document.getElementById('instruction');
+            instructionDiv.innerHTML = '📱 **Как сохранить подпись:**<br><br>' +
+                '1️⃣ Нажмите и удерживайте на изображении выше<br>' +
+                '2️⃣ Выберите **"Сохранить изображение"**<br>' +
+                '3️⃣ Затем отправьте сохранённый файл боту в чат<br><br>' +
+                '✅ После отправки подпись автоматически добавится в Excel';
+            instructionDiv.style.display = 'block';
+            
+            showStatus('✅ Изображение готово! Нажмите и удерживайте для сохранения', 'success');
+            
+            // Пытаемся скачать (для компьютера)
+            try {
                 const link = document.createElement('a');
                 link.download = 'signature.jpg';
-                link.href = url;
+                link.href = imageUrl;
                 link.click();
-                URL.revokeObjectURL(url);
-                
-                showStatus('✅ Сохранено! Отправьте файл боту', 'success');
-                
-                // Закрываем MiniApp через 2 секунды
-                setTimeout(() => {
-                    Telegram.WebApp.close();
-                }, 2000);
-                
-            }, 'image/jpeg', 0.9);
+            } catch(e) {
+                console.log('Автоскачивание не поддерживается');
+            }
+            
+            // Не закрываем MiniApp, чтобы пользователь мог сохранить изображение
+            // setTimeout(() => Telegram.WebApp.close(), 5000);
         }
         
         canvas.addEventListener('mousedown', startDrawing);

@@ -12,15 +12,12 @@
             font-family: system-ui;
             padding: 20px;
             min-height: 100vh;
-            display: flex;
-            flex-direction: column;
         }
-        .container { flex: 1; display: flex; flex-direction: column; gap: 20px; }
         .canvas-wrapper {
             background: white;
             border-radius: 16px;
             padding: 12px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
         }
         canvas {
             display: block;
@@ -29,10 +26,13 @@
             background: white;
             border-radius: 8px;
             cursor: crosshair;
-            touch-action: none;
             border: 1px solid #ddd;
         }
-        .buttons { display: flex; gap: 12px; }
+        .buttons {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
         button {
             background: var(--tg-theme-button-color);
             color: var(--tg-theme-button-text-color);
@@ -44,26 +44,36 @@
             cursor: pointer;
             flex: 1;
         }
-        .clear-btn { background: var(--tg-theme-secondary-bg-color); color: var(--tg-theme-text-color); }
-        .info { text-align: center; color: var(--tg-theme-hint-color); font-size: 13px; padding: 12px; background: var(--tg-theme-secondary-bg-color); border-radius: 12px; }
-        .status { text-align: center; font-size: 14px; padding: 10px; border-radius: 8px; margin-top: 8px; }
+        .clear-btn {
+            background: var(--tg-theme-secondary-bg-color);
+            color: var(--tg-theme-text-color);
+        }
+        .info {
+            text-align: center;
+            color: var(--tg-theme-hint-color);
+            font-size: 13px;
+        }
+        .status {
+            text-align: center;
+            font-size: 14px;
+            padding: 10px;
+            margin-top: 10px;
+            border-radius: 8px;
+        }
         .status-success { background: rgba(0,200,0,0.2); color: #00cc00; }
         .status-error { background: rgba(200,0,0,0.2); color: #ff4444; }
-        .status-info { background: rgba(0,100,200,0.2); color: #0088ff; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="canvas-wrapper">
-            <canvas id="signatureCanvas" width="500" height="250"></canvas>
-        </div>
-        <div class="buttons">
-            <button class="clear-btn" onclick="clearCanvas()">🗑 Очистить</button>
-            <button onclick="saveSignature()">✅ Сохранить</button>
-        </div>
-        <div class="info">✍️ Нарисуйте подпись пальцем или мышкой</div>
-        <div id="status" class="status"></div>
+    <div class="canvas-wrapper">
+        <canvas id="signatureCanvas" width="500" height="250"></canvas>
     </div>
+    <div class="buttons">
+        <button class="clear-btn" onclick="clearCanvas()">🗑 Очистить</button>
+        <button onclick="saveSignature()">✅ Сохранить</button>
+    </div>
+    <div class="info">✍️ Нарисуйте подпись пальцем или мышкой</div>
+    <div id="status" class="status"></div>
 
     <script>
         const canvas = document.getElementById('signatureCanvas');
@@ -124,7 +134,7 @@
         function clearCanvas() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             ctx.beginPath();
-            showStatus('Очищено', 'info');
+            showStatus('Очищено', 'success');
         }
         
         function showStatus(msg, type) {
@@ -132,10 +142,7 @@
             div.textContent = msg;
             div.className = `status status-${type}`;
             setTimeout(() => {
-                if (div.textContent === msg) {
-                    div.textContent = '';
-                    div.className = 'status';
-                }
+                if (div.textContent === msg) div.textContent = '';
             }, 3000);
         }
         
@@ -152,18 +159,18 @@
                 showStatus('⚠️ Нарисуйте подпись!', 'error');
                 return;
             }
-    
-            showStatus('📤 Отправка...', 'info');
-    
+            
+            showStatus('📤 Отправка...', 'success');
+            
             try {
                 const imageData = canvas.toDataURL('image/png');
-        // Отправляем как обычное текстовое сообщение с префиксом
-                Telegram.WebApp.sendData("SIGNATURE:" + imageData);
+                // Отправляем как обычный текст с префиксом
+                Telegram.WebApp.sendData("SIGNATURE_START" + imageData + "SIGNATURE_END");
                 showStatus('✅ Отправлено!', 'success');
-            setTimeout(() => Telegram.WebApp.close(), 500);
+                setTimeout(() => Telegram.WebApp.close(), 500);
             } catch (error) {
                 console.error('Error:', error);
-            showStatus('❌ Ошибка: ' + error.message, 'error');
+                showStatus('❌ Ошибка: ' + error.message, 'error');
             }
         }
         
@@ -177,6 +184,7 @@
         
         Telegram.WebApp.ready();
         Telegram.WebApp.expand();
+        console.log('Web App ready!');
     </script>
 </body>
 </html>

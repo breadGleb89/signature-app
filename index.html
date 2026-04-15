@@ -164,7 +164,6 @@
             
             try {
                 const imageData = canvas.toDataURL('image/png');
-                // Отправляем как обычный текст с префиксом
                 Telegram.WebApp.sendData("SIGNATURE_START" + imageData + "SIGNATURE_END");
                 showStatus('✅ Отправлено!', 'success');
                 setTimeout(() => Telegram.WebApp.close(), 500);

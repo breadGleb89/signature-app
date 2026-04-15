@@ -1,241 +1,193 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Электронная подпись</title>
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            background: var(--tg-theme-bg-color);
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            padding: 20px;
-            min-height: 100vh;
-        }
-        .container { max-width: 500px; margin: 0 auto; }
-        .title { text-align: center; margin-bottom: 20px; color: var(--tg-theme-text-color); }
-        .canvas-wrapper {
-            background: white;
-            border-radius: 16px;
-            padding: 10px;
-            margin-bottom: 20px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        }
-        canvas {
-            display: block;
-            width: 100%;
-            height: auto;
-            background: white;
-            border-radius: 8px;
-            cursor: crosshair;
-            border: 1px solid #ddd;
-        }
-        .buttons { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
-        button {
-            flex: 1;
-            background: var(--tg-theme-button-color);
-            color: var(--tg-theme-button-text-color);
-            border: none;
-            padding: 14px;
-            border-radius: 12px;
-            font-size: 16px;
-            font-weight: 500;
-            cursor: pointer;
-            min-width: 120px;
-        }
-        .clear-btn { background: var(--tg-theme-secondary-bg-color); color: var(--tg-theme-text-color); }
-        .share-btn { background: #34B7F1; color: white; }
-        .info { text-align: center; color: var(--tg-theme-hint-color); font-size: 13px; margin-top: 20px; }
-        .status { text-align: center; font-size: 14px; padding: 10px; margin-top: 10px; border-radius: 8px; }
-        .success { background: rgba(0,200,0,0.2); color: #00cc00; }
-        .error { background: rgba(200,0,0,0.2); color: #ff4444; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h3 class="title">✍️ Электронная подпись</h3>
-        
-        <div class="canvas-wrapper">
-            <canvas id="signatureCanvas" width="400" height="200"></canvas>
-        </div>
-        
-        <div class="buttons">
-            <button class="clear-btn" onclick="clearCanvas()">🗑 Очистить</button>
-            <button class="share-btn" onclick="shareToChat()">📤 Отправить в чат</button>
-            <button onclick="saveToGallery()">💾 Сохранить</button>
-        </div>
-        
-        <div class="info">
-            Нарисуйте подпись → "Отправить в чат" → выберите Telegram → отправьте боту
-        </div>
-        
-        <div id="status" class="status"></div>
-    </div>
+import os
+import base64
+from io import BytesIO
+from datetime import datetime
+from openpyxl import load_workbook
+from openpyxl.drawing.image import Image as XLImage
+from telegram import Update, KeyboardButton, ReplyKeyboardMarkup, WebAppInfo
+from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 
-    <script>
-        const canvas = document.getElementById('signatureCanvas');
-        const ctx = canvas.getContext('2d');
-        let drawing = false;
+# =====================
+# КОНФИГУРАЦИЯ
+# =====================
+TOKEN = "8110456718:AAHnz6l0JRWqMxr33QAYQV76i7t2a9o901g"
+WEB_APP_URL = "https://breadgleb89.github.io/signature-app/"
+
+# Создаем папки
+os.makedirs("signatures", exist_ok=True)
+os.makedirs("data", exist_ok=True)
+
+# Хранилище для ожидающих подпись
+pending_signatures = {}
+
+# =====================
+# ОБРАБОТЧИКИ
+# =====================
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Отправляет кнопку с MiniApp"""
+    user_id = update.effective_user.id
+    
+    button = KeyboardButton(
+        text="✍️ Нарисовать подпись",
+        web_app=WebAppInfo(url=WEB_APP_URL)
+    )
+    reply_markup = ReplyKeyboardMarkup(
+        [[button]], 
+        resize_keyboard=True,
+        one_time_keyboard=True
+    )
+    
+    await update.message.reply_text(
+        "📝 **Электронная подпись**\n\n"
+        "1️⃣ Нажмите на кнопку **'✍️ Нарисовать подпись'**\n"
+        "2️⃣ Нарисуйте подпись пальцем или мышкой\n"
+        "3️⃣ Нажмите **'📤 Отправить в чат'**\n"
+        "4️⃣ Выберите **Telegram** и отправьте фото боту\n\n"
+        "✅ После отправки фото подпись автоматически добавится в **template.xlsx**",
+        parse_mode="Markdown",
+        reply_markup=reply_markup
+    )
+    
+    # Отмечаем, что пользователь ожидает отправки подписи
+    pending_signatures[user_id] = True
+
+async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Обрабатывает фото подписи, отправленное пользователем"""
+    user_id = update.effective_user.id
+    
+    if not update.message.photo:
+        await update.message.reply_text("❌ Отправьте фото с подписью")
+        return
+    
+    await update.message.reply_text("📸 **Фото получено, обрабатываю...**", parse_mode="Markdown")
+    
+    # Получаем фото в максимальном качестве
+    photo = update.message.photo[-1]
+    file = await context.bot.get_file(photo.file_id)
+    
+    # Скачиваем фото
+    temp_path = f"signatures/temp_{user_id}.jpg"
+    await file.download_to_drive(temp_path)
+    
+    try:
+        # Открываем Excel
+        excel_file = "template.xlsx"
+        if not os.path.exists(excel_file):
+            await update.message.reply_text(f"❌ Файл **{excel_file}** не найден!\n\nСоздайте файл template.xlsx в папке с ботом.", parse_mode="Markdown")
+            return
         
-        ctx.lineWidth = 2;
-        ctx.lineCap = 'round';
-        ctx.lineJoin = 'round';
-        ctx.strokeStyle = '#000000';
+        wb = load_workbook(excel_file)
+        ws = wb.active
         
-        function getCoordinates(e) {
-            const rect = canvas.getBoundingClientRect();
-            const scaleX = canvas.width / rect.width;
-            const scaleY = canvas.height / rect.height;
-            
-            let clientX, clientY;
-            if (e.touches) {
-                clientX = e.touches[0].clientX;
-                clientY = e.touches[0].clientY;
-                e.preventDefault();
-            } else {
-                clientX = e.clientX;
-                clientY = e.clientY;
-            }
-            
-            let x = (clientX - rect.left) * scaleX;
-            let y = (clientY - rect.top) * scaleY;
-            x = Math.max(0, Math.min(x, canvas.width));
-            y = Math.max(0, Math.min(y, canvas.height));
-            return { x, y };
-        }
+        # Вставляем фото в ячейку F49
+        img = XLImage(temp_path)
+        img.width = 200
+        img.height = 100
+        ws.add_image(img, "F49")
+        wb.save(excel_file)
         
-        function startDrawing(e) {
-            drawing = true;
-            const pos = getCoordinates(e);
-            ctx.beginPath();
-            ctx.moveTo(pos.x, pos.y);
-            ctx.lineTo(pos.x, pos.y);
-            ctx.stroke();
-            e.preventDefault();
-        }
+        # Отправляем подтверждение
+        await update.message.reply_text(
+            "✅ **Подпись успешно добавлена!**\n\n"
+            f"📍 **Ячейка:** F49\n"
+            f"📄 **Файл:** {excel_file}\n"
+            f"🕐 **Время:** {datetime.now().strftime('%H:%M:%S')}",
+            parse_mode="Markdown"
+        )
         
-        function draw(e) {
-            if (!drawing) return;
-            e.preventDefault();
-            const pos = getCoordinates(e);
-            ctx.lineTo(pos.x, pos.y);
-            ctx.stroke();
-            ctx.beginPath();
-            ctx.moveTo(pos.x, pos.y);
-        }
+        # Отправляем превью подписи
+        with open(temp_path, 'rb') as f:
+            await update.message.reply_photo(
+                photo=f,
+                caption="✍️ **Ваша подпись**\n\nТак она будет выглядеть в документе.",
+                parse_mode="Markdown"
+            )
         
-        function stopDrawing(e) {
-            drawing = false;
-            ctx.beginPath();
-            if (e) e.preventDefault();
-        }
+        # Убираем из ожидающих
+        if user_id in pending_signatures:
+            del pending_signatures[user_id]
         
-        function clearCanvas() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.beginPath();
-            showStatus('Очищено', 'success');
-        }
-        
-        function showStatus(msg, type) {
-            const div = document.getElementById('status');
-            div.textContent = msg;
-            div.className = `status ${type}`;
-            setTimeout(() => {
-                if (div.textContent === msg) div.textContent = '';
-            }, 2000);
-        }
-        
-        function isCanvasEmpty() {
-            const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
-            for (let i = 3; i < pixels.length; i += 4) {
-                if (pixels[i] > 0) return false;
-            }
-            return true;
-        }
-        
-        function shareToChat() {
-            if (isCanvasEmpty()) {
-                showStatus('⚠️ Нарисуйте подпись!', 'error');
-                return;
-            }
-            
-            showStatus('📤 Подготовка...', 'success');
-            
-            // Уменьшаем размер для отправки
-            const tempCanvas = document.createElement('canvas');
-            const tempCtx = tempCanvas.getContext('2d');
-            tempCanvas.width = 300;
-            tempCanvas.height = 150;
-            tempCtx.drawImage(canvas, 0, 0, 300, 150);
-            
-            tempCanvas.toBlob(function(blob) {
-                const file = new File([blob], "signature.jpg", { type: "image/jpeg" });
-                
-                // Используем Web Share API
-                if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-                    navigator.share({
-                        title: 'Электронная подпись',
-                        text: 'Моя подпись для документа',
-                        files: [file]
-                    }).then(() => {
-                        showStatus('✅ Отправлено!', 'success');
-                        setTimeout(() => Telegram.WebApp.close(), 500);
-                    }).catch((error) => {
-                        console.log('Ошибка:', error);
-                        fallbackShare(tempCanvas);
-                    });
-                } else {
-                    fallbackShare(tempCanvas);
-                }
-            }, 'image/jpeg', 0.8);
-        }
-        
-        function fallbackShare(canvas) {
-            // Альтернативный способ - открыть изображение в новой вкладке
-            const url = canvas.toDataURL('image/jpeg', 0.8);
-            const link = document.createElement('a');
-            link.download = 'signature.jpg';
-            link.href = url;
-            link.click();
-            
-            showStatus('✅ Изображение сохранено! Отправьте его боту', 'success');
-            setTimeout(() => Telegram.WebApp.close(), 2000);
-        }
-        
-        function saveToGallery() {
-            if (isCanvasEmpty()) {
-                showStatus('⚠️ Нарисуйте подпись!', 'error');
-                return;
-            }
-            
-            const tempCanvas = document.createElement('canvas');
-            const tempCtx = tempCanvas.getContext('2d');
-            tempCanvas.width = 300;
-            tempCanvas.height = 150;
-            tempCtx.drawImage(canvas, 0, 0, 300, 150);
-            
-            tempCanvas.toBlob(function(blob) {
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = 'signature.jpg';
-                a.click();
-                URL.revokeObjectURL(url);
-                showStatus('✅ Сохранено!', 'success');
-            }, 'image/jpeg', 0.8);
-        }
-        
-        canvas.addEventListener('mousedown', startDrawing);
-        canvas.addEventListener('mousemove', draw);
-        canvas.addEventListener('mouseup', stopDrawing);
-        canvas.addEventListener('mouseleave', stopDrawing);
-        canvas.addEventListener('touchstart', startDrawing);
-        canvas.addEventListener('touchmove', draw);
-        canvas.addEventListener('touchend', stopDrawing);
-        
-        Telegram.WebApp.ready();
-        Telegram.WebApp.expand();
-    </script>
-</body>
-</html>
+    except Exception as e:
+        await update.message.reply_text(f"❌ **Ошибка:** {str(e)}", parse_mode="Markdown")
+    
+    finally:
+        # Удаляем временный файл
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
+
+async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Обработка обычных текстовых сообщений"""
+    text = update.message.text.strip()
+    
+    if text == "/start":
+        return
+    
+    await update.message.reply_text(
+        "⚠️ **Чтобы нарисовать подпись:**\n\n"
+        "1️⃣ Нажмите на кнопку **'✍️ Нарисовать подпись'** внизу экрана\n"
+        "2️⃣ Или отправьте команду **/start**",
+        parse_mode="Markdown"
+    )
+
+async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Команда помощи"""
+    await update.message.reply_text(
+        "📖 **Помощь**\n\n"
+        "**Как поставить подпись:**\n"
+        "1. Нажмите **/start**\n"
+        "2. Нажмите кнопку **'✍️ Нарисовать подпись'**\n"
+        "3. Нарисуйте подпись\n"
+        "4. Нажмите **'📤 Отправить в чат'**\n"
+        "5. Выберите **Telegram** и отправьте боту\n\n"
+        "**Команды:**\n"
+        "/start - Начать\n"
+        "/help - Помощь\n"
+        "/status - Статус бота",
+        parse_mode="Markdown"
+    )
+
+async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Проверка статуса"""
+    user_id = update.effective_user.id
+    excel_exists = os.path.exists("template.xlsx")
+    
+    status_text = f"📊 **Статус бота**\n\n"
+    status_text += f"✅ Бот работает\n"
+    status_text += f"📄 Файл template.xlsx: **{'✅ найден' if excel_exists else '❌ не найден'}**\n"
+    status_text += f"🖼️ Ожидают подпись: {len(pending_signatures)} пользователей\n"
+    
+    await update.message.reply_text(status_text, parse_mode="Markdown")
+
+# =====================
+# MAIN
+# =====================
+def main():
+    print("=" * 60)
+    print("🚀 ТЕСТОВЫЙ БОТ ЗАПУЩЕН")
+    print(f"🌐 MiniApp URL: {WEB_APP_URL}")
+    print("=" * 60)
+    print("\n📌 ИНСТРУКЦИЯ:")
+    print("1. Отправьте /start боту в Telegram")
+    print("2. Нажмите кнопку '✍️ Нарисовать подпись'")
+    print("3. Нарисуйте подпись пальцем или мышкой")
+    print("4. Нажмите '📤 Отправить в чат'")
+    print("5. Выберите Telegram и отправьте фото боту")
+    print("6. Подпись автоматически добавится в template.xlsx\n")
+    print("=" * 60)
+    
+    # Создаем приложение
+    app = Application.builder().token(TOKEN).build()
+    
+    # Добавляем обработчики
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("help", help_command))
+    app.add_handler(CommandHandler("status", status_command))
+    app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
+    
+    # Запускаем бота
+    print("🔄 Запуск polling...")
+    app.run_polling(drop_pending_updates=True)
+
+if __name__ == "__main__":
+    main()

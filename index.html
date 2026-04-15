@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Электронная подпись</title>
+    <title>Подпись</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             background: var(--tg-theme-bg-color);
-            font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+            font-family: system-ui;
             padding: 20px;
             min-height: 100vh;
             display: flex;
@@ -59,7 +59,7 @@
         </div>
         <div class="buttons">
             <button class="clear-btn" onclick="clearCanvas()">🗑 Очистить</button>
-            <button onclick="saveSignature()">✅ Сохранить подпись</button>
+            <button onclick="saveSignature()">✅ Сохранить</button>
         </div>
         <div class="info">✍️ Нарисуйте подпись пальцем или мышкой</div>
         <div id="status" class="status"></div>
@@ -124,14 +124,19 @@
         function clearCanvas() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             ctx.beginPath();
-            showStatus('Canvas очищен', 'info');
+            showStatus('Очищено', 'info');
         }
         
         function showStatus(msg, type) {
             const div = document.getElementById('status');
             div.textContent = msg;
             div.className = `status status-${type}`;
-            setTimeout(() => { if (div.textContent === msg) { div.textContent = ''; div.className = 'status'; } }, 3000);
+            setTimeout(() => {
+                if (div.textContent === msg) {
+                    div.textContent = '';
+                    div.className = 'status';
+                }
+            }, 3000);
         }
         
         function isCanvasEmpty() {
@@ -142,39 +147,34 @@
             return true;
         }
         
-        function saveSignature() {
+        async function saveSignature() {
             if (isCanvasEmpty()) {
-                showStatus('⚠️ Нарисуйте подпись перед сохранением!', 'error');
+                showStatus('⚠️ Нарисуйте подпись!', 'error');
                 return;
             }
             
-            showStatus('📤 Отправка подписи...', 'info');
+            showStatus('📤 Отправка...', 'info');
             
             try {
                 const imageData = canvas.toDataURL('image/png');
+                const response = await fetch('/submit', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ signature: imageData })
+                });
                 
-                // Проверяем, что Web App доступен
-                if (typeof Telegram === 'undefined' || !Telegram.WebApp) {
-                    showStatus('❌ Ошибка: Telegram Web App не доступен', 'error');
-                    return;
+                if (response.ok) {
+                    showStatus('✅ Подпись отправлена!', 'success');
+                    setTimeout(() => Telegram.WebApp.close(), 500);
+                } else {
+                    showStatus('❌ Ошибка отправки', 'error');
                 }
-                
-                // Отправляем данные
-                Telegram.WebApp.sendData(imageData);
-                showStatus('✅ Подпись отправлена!', 'success');
-                
-                // Закрываем Web App
-                setTimeout(() => {
-                    Telegram.WebApp.close();
-                }, 500);
-                
             } catch (error) {
-                console.error('Save error:', error);
+                console.error('Error:', error);
                 showStatus('❌ Ошибка: ' + error.message, 'error');
             }
         }
         
-        // События
         canvas.addEventListener('mousedown', startDrawing);
         canvas.addEventListener('mousemove', draw);
         canvas.addEventListener('mouseup', stopDrawing);
@@ -182,13 +182,9 @@
         canvas.addEventListener('touchstart', startDrawing);
         canvas.addEventListener('touchmove', draw);
         canvas.addEventListener('touchend', stopDrawing);
-        canvas.addEventListener('touchmove', (e) => { if (drawing) e.preventDefault(); }, { passive: false });
         
-        // Запуск Web App
         Telegram.WebApp.ready();
         Telegram.WebApp.expand();
-        
-        console.log('Web App ready!');
     </script>
 </body>
 </html>

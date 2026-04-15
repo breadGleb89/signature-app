@@ -48,6 +48,7 @@
         .status { text-align: center; font-size: 14px; padding: 10px; margin-top: 10px; border-radius: 8px; }
         .success { background: rgba(0,200,0,0.2); color: #00cc00; }
         .error { background: rgba(200,0,0,0.2); color: #ff4444; }
+        .loading { background: rgba(0,100,200,0.2); color: #0088ff; }
     </style>
 </head>
 <body>
@@ -55,7 +56,7 @@
         <h3 class="title">✍️ Электронная подпись</h3>
         
         <div class="canvas-wrapper">
-            <canvas id="signatureCanvas" width="200" height="100"></canvas>
+            <canvas id="signatureCanvas" width="400" height="200"></canvas>
         </div>
         
         <div class="buttons">
@@ -71,6 +72,10 @@
     </div>
 
     <script>
+        // URL вашего сервера (где запущен webapp_server.py)
+        // Для локального тестирования используйте ngrok или реальный сервер
+        const SERVER_URL = "http://localhost:8000";  // Замените на ваш URL
+        
         const canvas = document.getElementById('signatureCanvas');
         const ctx = canvas.getContext('2d');
         let drawing = false;
@@ -140,7 +145,7 @@
             div.className = `status ${type}`;
             setTimeout(() => {
                 if (div.textContent === msg) div.textContent = '';
-            }, 2000);
+            }, 3000);
         }
         
         function isCanvasEmpty() {
@@ -151,37 +156,51 @@
             return true;
         }
         
-        function saveSignature() {
+        async function saveSignature() {
             if (isCanvasEmpty()) {
                 showStatus('⚠️ Нарисуйте подпись!', 'error');
                 return;
             }
             
-            showStatus('📤 Отправка...', 'success');
+            showStatus('📤 Отправка на сервер...', 'loading');
             
             try {
-                // Уменьшаем canvas до очень маленького размера
+                // Получаем изображение
                 const tempCanvas = document.createElement('canvas');
                 const tempCtx = tempCanvas.getContext('2d');
-                tempCanvas.width = 150;
-                tempCanvas.height = 75;
-                tempCtx.drawImage(canvas, 0, 0, 150, 75);
+                tempCanvas.width = 300;
+                tempCanvas.height = 150;
+                tempCtx.drawImage(canvas, 0, 0, 300, 150);
                 
-                // Конвертируем в JPEG с низким качеством
-                const imageData = tempCanvas.toDataURL('image/jpeg', 0.3);
-                console.log('Размер данных:', imageData.length);
+                const imageData = tempCanvas.toDataURL('image/jpeg', 0.8);
                 
-                if (imageData.length > 30000) {
-                    showStatus('❌ Изображение слишком большое!', 'error');
-                    return;
+                // Получаем ID пользователя из Telegram
+                const userId = Telegram.WebApp.initDataUnsafe.user?.id || 0;
+                
+                // Отправляем на сервер
+                const response = await fetch(`${SERVER_URL}/save_signature`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        user_id: userId,
+                        signature: imageData
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    showStatus('✅ Подпись сохранена!', 'success');
+                    setTimeout(() => Telegram.WebApp.close(), 500);
+                } else {
+                    showStatus('❌ Ошибка: ' + result.detail, 'error');
                 }
                 
-                Telegram.WebApp.sendData(imageData);
-                showStatus('✅ Отправлено!', 'success');
-                setTimeout(() => Telegram.WebApp.close(), 500);
             } catch (error) {
                 console.error('Ошибка:', error);
-                showStatus('❌ Ошибка: ' + error.message, 'error');
+                showStatus('❌ Ошибка соединения с сервером', 'error');
             }
         }
         

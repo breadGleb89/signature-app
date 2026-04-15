@@ -41,4 +41,26 @@
       ctx.lineTo(e.offsetX, e.offsetY);
       ctx.stroke();
       ctx.beginPath();
-     
+      ctx.moveTo(e.offsetX, e.offsetY);
+    }
+    
+    function stopDrawing() {
+      isDrawing = false;
+      ctx.beginPath();
+    }
+    
+    function saveSignature() {
+      // Получаем изображение в формате PNG (base64)
+      const dataURL = canvas.toDataURL('image/png');
+      
+      // Отправляем данные в Telegram Web App
+      window.Telegram.WebApp.sendData(dataURL);
+      
+      // Закрываем мини-приложение после отправки (опционально)
+      window.Telegram.WebApp.close();
+      
+      alert('Подпись отправлена!');
+    }
+  </script>
+</body>
+</html>

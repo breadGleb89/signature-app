@@ -31,7 +31,7 @@
             cursor: crosshair;
             border: 1px solid #ddd;
         }
-        .buttons { display: flex; gap: 12px; margin-bottom: 20px; }
+        .buttons { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
         button {
             flex: 1;
             background: var(--tg-theme-button-color);
@@ -42,8 +42,10 @@
             font-size: 16px;
             font-weight: 500;
             cursor: pointer;
+            min-width: 120px;
         }
         .clear-btn { background: var(--tg-theme-secondary-bg-color); color: var(--tg-theme-text-color); }
+        .share-btn { background: #34B7F1; color: white; }
         .info { text-align: center; color: var(--tg-theme-hint-color); font-size: 13px; margin-top: 20px; }
         .status { text-align: center; font-size: 14px; padding: 10px; margin-top: 10px; border-radius: 8px; }
         .success { background: rgba(0,200,0,0.2); color: #00cc00; }
@@ -60,11 +62,12 @@
         
         <div class="buttons">
             <button class="clear-btn" onclick="clearCanvas()">🗑 Очистить</button>
-            <button onclick="sendToChat()">📤 Отправить в чат</button>
+            <button class="share-btn" onclick="shareToChat()">📤 Отправить в чат</button>
+            <button onclick="saveToGallery()">💾 Сохранить</button>
         </div>
         
         <div class="info">
-            Нарисуйте подпись и нажмите "Отправить в чат"
+            Нарисуйте подпись → "Отправить в чат" → выберите Telegram → отправьте боту
         </div>
         
         <div id="status" class="status"></div>
@@ -151,39 +154,76 @@
             return true;
         }
         
-        function sendToChat() {
+        function shareToChat() {
             if (isCanvasEmpty()) {
                 showStatus('⚠️ Нарисуйте подпись!', 'error');
                 return;
             }
             
-            showStatus('📤 Отправка...', 'success');
+            showStatus('📤 Подготовка...', 'success');
             
-            try {
-                // Уменьшаем размер для отправки
-                const tempCanvas = document.createElement('canvas');
-                const tempCtx = tempCanvas.getContext('2d');
-                tempCanvas.width = 300;
-                tempCanvas.height = 150;
-                tempCtx.drawImage(canvas, 0, 0, 300, 150);
+            // Уменьшаем размер для отправки
+            const tempCanvas = document.createElement('canvas');
+            const tempCtx = tempCanvas.getContext('2d');
+            tempCanvas.width = 300;
+            tempCanvas.height = 150;
+            tempCtx.drawImage(canvas, 0, 0, 300, 150);
+            
+            tempCanvas.toBlob(function(blob) {
+                const file = new File([blob], "signature.jpg", { type: "image/jpeg" });
                 
-                // Отправляем как data URL (пользователь должен будет отправить вручную)
-                const imageData = tempCanvas.toDataURL('image/jpeg', 0.8);
-                
-                // Сохраняем в localStorage и показываем инструкцию
-                localStorage.setItem('signature', imageData);
-                
-                showStatus('✅ Готово!', 'success');
-                
-                setTimeout(() => {
-                    alert('Подпись готова!\n\nЧтобы отправить её боту:\n1. Нажмите на скриншот ниже\n2. Выберите "Сохранить изображение"\n3. Отправьте фото боту в чат');
-                    Telegram.WebApp.close();
-                }, 500);
-                
-            } catch (error) {
-                console.error('Ошибка:', error);
-                showStatus('❌ Ошибка: ' + error.message, 'error');
+                // Используем Web Share API
+                if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+                    navigator.share({
+                        title: 'Электронная подпись',
+                        text: 'Моя подпись для документа',
+                        files: [file]
+                    }).then(() => {
+                        showStatus('✅ Отправлено!', 'success');
+                        setTimeout(() => Telegram.WebApp.close(), 500);
+                    }).catch((error) => {
+                        console.log('Ошибка:', error);
+                        fallbackShare(tempCanvas);
+                    });
+                } else {
+                    fallbackShare(tempCanvas);
+                }
+            }, 'image/jpeg', 0.8);
+        }
+        
+        function fallbackShare(canvas) {
+            // Альтернативный способ - открыть изображение в новой вкладке
+            const url = canvas.toDataURL('image/jpeg', 0.8);
+            const link = document.createElement('a');
+            link.download = 'signature.jpg';
+            link.href = url;
+            link.click();
+            
+            showStatus('✅ Изображение сохранено! Отправьте его боту', 'success');
+            setTimeout(() => Telegram.WebApp.close(), 2000);
+        }
+        
+        function saveToGallery() {
+            if (isCanvasEmpty()) {
+                showStatus('⚠️ Нарисуйте подпись!', 'error');
+                return;
             }
+            
+            const tempCanvas = document.createElement('canvas');
+            const tempCtx = tempCanvas.getContext('2d');
+            tempCanvas.width = 300;
+            tempCanvas.height = 150;
+            tempCtx.drawImage(canvas, 0, 0, 300, 150);
+            
+            tempCanvas.toBlob(function(blob) {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'signature.jpg';
+                a.click();
+                URL.revokeObjectURL(url);
+                showStatus('✅ Сохранено!', 'success');
+            }, 'image/jpeg', 0.8);
         }
         
         canvas.addEventListener('mousedown', startDrawing);

@@ -147,31 +147,23 @@
             return true;
         }
         
-        async function saveSignature() {
+        function saveSignature() {
             if (isCanvasEmpty()) {
                 showStatus('⚠️ Нарисуйте подпись!', 'error');
                 return;
             }
-            
+    
             showStatus('📤 Отправка...', 'info');
-            
+    
             try {
                 const imageData = canvas.toDataURL('image/png');
-                const response = await fetch('/submit', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ signature: imageData })
-                });
-                
-                if (response.ok) {
-                    showStatus('✅ Подпись отправлена!', 'success');
-                    setTimeout(() => Telegram.WebApp.close(), 500);
-                } else {
-                    showStatus('❌ Ошибка отправки', 'error');
-                }
+        // Отправляем как обычное текстовое сообщение с префиксом
+                Telegram.WebApp.sendData("SIGNATURE:" + imageData);
+                showStatus('✅ Отправлено!', 'success');
+            setTimeout(() => Telegram.WebApp.close(), 500);
             } catch (error) {
                 console.error('Error:', error);
-                showStatus('❌ Ошибка: ' + error.message, 'error');
+            showStatus('❌ Ошибка: ' + error.message, 'error');
             }
         }
         

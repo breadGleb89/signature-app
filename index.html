@@ -3,260 +3,105 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Электронная подпись</title>
+    <title>Подпись</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            background: var(--tg-theme-bg-color);
-            font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-            padding: 20px;
-            min-height: 100vh;
-        }
-        .container { max-width: 500px; margin: 0 auto; }
-        h3 { text-align: center; margin-bottom: 20px; color: var(--tg-theme-text-color); }
-        .canvas-wrapper {
-            background: white;
-            border-radius: 16px;
-            padding: 10px;
-            margin-bottom: 20px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        }
-        canvas {
-            display: block;
-            width: 100%;
-            height: auto;
-            background: white;
-            border-radius: 8px;
-            cursor: crosshair;
-            border: 1px solid #ccc;
-        }
-        .buttons { display: flex; gap: 12px; margin-bottom: 20px; }
-        button {
-            flex: 1;
-            background: var(--tg-theme-button-color);
-            color: var(--tg-theme-button-text-color);
-            border: none;
-            padding: 14px;
-            border-radius: 12px;
-            font-size: 16px;
-            font-weight: 500;
-            cursor: pointer;
-        }
-        .clear-btn {
-            background: var(--tg-theme-secondary-bg-color);
-            color: var(--tg-theme-text-color);
-        }
-        .save-btn {
-            background: #34B7F1;
-            color: white;
-        }
-        .info {
-            text-align: center;
-            color: var(--tg-theme-hint-color);
-            font-size: 13px;
-            margin-top: 20px;
-        }
-        .status {
-            text-align: center;
-            font-size: 14px;
-            padding: 10px;
-            margin-top: 10px;
-            border-radius: 8px;
-        }
-        .success { background: rgba(0,200,0,0.2); color: #00cc00; }
-        .error { background: rgba(200,0,0,0.2); color: #ff4444; }
-        .preview-image {
-            display: none;
-            max-width: 100%;
-            margin-top: 20px;
-            border-radius: 12px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        }
-        .instruction {
-            display: none;
-            background: rgba(0,100,200,0.2);
-            color: #0088ff;
-            padding: 12px;
-            border-radius: 12px;
-            margin-top: 15px;
-            text-align: center;
-            font-size: 14px;
-        }
+        body { font-family: system-ui; padding: 20px; text-align: center; }
+        canvas { border: 1px solid #ccc; cursor: crosshair; background: white; margin: 20px 0; }
+        button { margin: 5px; padding: 12px 24px; border-radius: 12px; border: none; background: #0088cc; color: white; }
+        .clear { background: #999; }
+        .status { margin-top: 20px; color: #666; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h3>✍️ Электронная подпись</h3>
-        
-        <div class="canvas-wrapper">
-            <canvas id="signatureCanvas" width="500" height="200"></canvas>
-        </div>
-        
-        <div class="buttons">
-            <button class="clear-btn" onclick="clearCanvas()">🗑 Очистить</button>
-            <button class="save-btn" onclick="saveToPhone()">💾 Сохранить на телефон</button>
-        </div>
-        
-        <div class="info">
-            ✍️ Нарисуйте подпись → "Сохранить на телефон"
-        </div>
-        
-        <div id="status" class="status"></div>
-        <img id="previewImage" class="preview-image" />
-        <div id="instruction" class="instruction"></div>
-    </div>
+    <h3>✍️ Электронная подпись</h3>
+    <canvas id="sigCanvas" width="300" height="120"></canvas><br>
+    <button class="clear" onclick="clearCanvas()">Очистить</button>
+    <button onclick="sendSignature()">✅ Отправить подпись</button>
+    <div id="status" class="status"></div>
 
     <script>
-        const canvas = document.getElementById('signatureCanvas');
+        const canvas = document.getElementById('sigCanvas');
         const ctx = canvas.getContext('2d');
         let drawing = false;
         
         // Белый фон
         ctx.fillStyle = 'white';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.strokeStyle = 'black';
+        ctx.lineWidth = 2;
         
-        // Настройки рисования
-        ctx.lineWidth = 2.5;
-        ctx.lineCap = 'round';
-        ctx.lineJoin = 'round';
-        ctx.strokeStyle = '#000000';
-        
-        function getCoordinates(e) {
+        function getCoords(e) {
             const rect = canvas.getBoundingClientRect();
             const scaleX = canvas.width / rect.width;
             const scaleY = canvas.height / rect.height;
-            
-            let clientX, clientY;
+            let x, y;
             if (e.touches) {
-                clientX = e.touches[0].clientX;
-                clientY = e.touches[0].clientY;
+                x = (e.touches[0].clientX - rect.left) * scaleX;
+                y = (e.touches[0].clientY - rect.top) * scaleY;
                 e.preventDefault();
             } else {
-                clientX = e.clientX;
-                clientY = e.clientY;
+                x = (e.clientX - rect.left) * scaleX;
+                y = (e.clientY - rect.top) * scaleY;
             }
-            
-            let x = (clientX - rect.left) * scaleX;
-            let y = (clientY - rect.top) * scaleY;
-            x = Math.max(0, Math.min(x, canvas.width));
-            y = Math.max(0, Math.min(y, canvas.height));
-            return { x, y };
+            return { x: Math.min(Math.max(0, x), canvas.width), y: Math.min(Math.max(0, y), canvas.height) };
         }
         
-        function startDrawing(e) {
-            drawing = true;
-            const pos = getCoordinates(e);
-            ctx.beginPath();
-            ctx.moveTo(pos.x, pos.y);
-            ctx.lineTo(pos.x, pos.y);
-            ctx.stroke();
-            e.preventDefault();
-        }
-        
-        function draw(e) {
-            if (!drawing) return;
-            e.preventDefault();
-            const pos = getCoordinates(e);
-            ctx.lineTo(pos.x, pos.y);
-            ctx.stroke();
-            ctx.beginPath();
-            ctx.moveTo(pos.x, pos.y);
-        }
-        
-        function stopDrawing(e) {
-            drawing = false;
-            ctx.beginPath();
-            if (e) e.preventDefault();
-        }
+        function start(e) { drawing = true; ctx.beginPath(); const p = getCoords(e); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x, p.y); ctx.stroke(); e.preventDefault(); }
+        function draw(e) { if (!drawing) return; e.preventDefault(); const p = getCoords(e); ctx.lineTo(p.x, p.y); ctx.stroke(); ctx.beginPath(); ctx.moveTo(p.x, p.y); }
+        function stop(e) { drawing = false; ctx.beginPath(); e.preventDefault(); }
         
         function clearCanvas() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             ctx.fillStyle = 'white';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
-            ctx.beginPath();
-            
-            // Скрываем превью и инструкцию
-            document.getElementById('previewImage').style.display = 'none';
-            document.getElementById('instruction').style.display = 'none';
-            showStatus('Очищено', 'success');
-        }
-        
-        function showStatus(msg, type) {
-            const div = document.getElementById('status');
-            div.textContent = msg;
-            div.className = `status ${type}`;
-            setTimeout(() => {
-                if (div.textContent === msg) div.textContent = '';
-            }, 2000);
+            document.getElementById('status').innerText = 'Очищено';
         }
         
         function isCanvasEmpty() {
-            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-            const pixels = imageData.data;
-            for (let i = 0; i < pixels.length; i += 4) {
-                if (pixels[i] < 250 || pixels[i+1] < 250 || pixels[i+2] < 250) {
-                    return false;
-                }
+            const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            for (let i = 0; i < imgData.data.length; i += 4) {
+                if (imgData.data[i] < 250) return false;
             }
             return true;
         }
         
-        function saveToPhone() {
+        function sendSignature() {
             if (isCanvasEmpty()) {
-                showStatus('⚠️ Нарисуйте подпись!', 'error');
+                document.getElementById('status').innerText = '⚠️ Сначала нарисуйте подпись';
                 return;
             }
+            document.getElementById('status').innerText = '📤 Отправка...';
             
-            showStatus('📸 Создание изображения...', 'success');
-            
-            // Уменьшаем размер
+            // Супер-сжатие: canvas 200x80, WebP качество 0.3
             const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = 200;
+            tempCanvas.height = 80;
             const tempCtx = tempCanvas.getContext('2d');
-            tempCanvas.width = 400;
-            tempCanvas.height = 160;
             tempCtx.fillStyle = 'white';
             tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
             tempCtx.drawImage(canvas, 0, 0, tempCanvas.width, tempCanvas.height);
             
-            // Показываем изображение на экране
-            const imageUrl = tempCanvas.toDataURL('image/jpeg', 0.9);
-            const previewImg = document.getElementById('previewImage');
-            previewImg.src = imageUrl;
-            previewImg.style.display = 'block';
-            
-            // Показываем инструкцию
-            const instructionDiv = document.getElementById('instruction');
-            instructionDiv.innerHTML = '📱 **Как сохранить подпись:**<br><br>' +
-                '1️⃣ Нажмите и удерживайте на изображении выше<br>' +
-                '2️⃣ Выберите **"Сохранить изображение"**<br>' +
-                '3️⃣ Затем отправьте сохранённый файл боту в чат<br><br>' +
-                '✅ После отправки подпись автоматически добавится в Excel';
-            instructionDiv.style.display = 'block';
-            
-            showStatus('✅ Изображение готово! Нажмите и удерживайте для сохранения', 'success');
-            
-            // Пытаемся скачать (для компьютера)
-            try {
-                const link = document.createElement('a');
-                link.download = 'signature.jpg';
-                link.href = imageUrl;
-                link.click();
-            } catch(e) {
-                console.log('Автоскачивание не поддерживается');
-            }
-            
-            // Не закрываем MiniApp, чтобы пользователь мог сохранить изображение
-            // setTimeout(() => Telegram.WebApp.close(), 5000);
+            tempCanvas.toBlob(function(blob) {
+                const reader = new FileReader();
+                reader.onload = function() {
+                    const base64 = reader.result;
+                    console.log('Размер base64:', base64.length);
+                    Telegram.WebApp.sendData(base64);
+                    document.getElementById('status').innerText = '✅ Отправлено!';
+                    setTimeout(() => Telegram.WebApp.close(), 500);
+                };
+                reader.readAsDataURL(blob);
+            }, 'image/webp', 0.3);
         }
         
-        canvas.addEventListener('mousedown', startDrawing);
+        canvas.addEventListener('mousedown', start);
         canvas.addEventListener('mousemove', draw);
-        canvas.addEventListener('mouseup', stopDrawing);
-        canvas.addEventListener('mouseleave', stopDrawing);
-        canvas.addEventListener('touchstart', startDrawing);
+        canvas.addEventListener('mouseup', stop);
+        canvas.addEventListener('mouseleave', stop);
+        canvas.addEventListener('touchstart', start);
         canvas.addEventListener('touchmove', draw);
-        canvas.addEventListener('touchend', stopDrawing);
+        canvas.addEventListener('touchend', stop);
         
         Telegram.WebApp.ready();
         Telegram.WebApp.expand();

@@ -48,6 +48,18 @@
         .status { text-align: center; font-size: 14px; padding: 10px; margin-top: 10px; border-radius: 8px; }
         .success { background: rgba(0,200,0,0.2); color: #00cc00; }
         .error { background: rgba(200,0,0,0.2); color: #ff4444; }
+        .debug { 
+            background: #333; 
+            color: #0f0; 
+            font-family: monospace; 
+            font-size: 10px; 
+            padding: 10px; 
+            margin-top: 10px;
+            border-radius: 8px;
+            word-break: break-all;
+            max-height: 100px;
+            overflow: auto;
+        }
     </style>
 </head>
 <body>
@@ -63,11 +75,16 @@
             <button onclick="saveSignature()">✅ Сохранить подпись</button>
         </div>
         
+        <div class="buttons">
+            <button onclick="sendTestText()">📤 Отправить текст</button>
+        </div>
+        
         <div class="info">
-            Нарисуйте вашу подпись пальцем или мышкой
+            Нарисуйте подпись и нажмите "Сохранить подпись"
         </div>
         
         <div id="status" class="status"></div>
+        <div id="debug" class="debug"></div>
     </div>
 
     <script>
@@ -79,6 +96,13 @@
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
         ctx.strokeStyle = '#000000';
+        
+        function debugLog(msg) {
+            const debugDiv = document.getElementById('debug');
+            debugDiv.innerHTML += new Date().toLocaleTimeString() + ': ' + msg + '\n';
+            debugDiv.scrollTop = debugDiv.scrollHeight;
+            console.log(msg);
+        }
         
         function getCoordinates(e) {
             const rect = canvas.getBoundingClientRect();
@@ -110,6 +134,7 @@
             ctx.lineTo(pos.x, pos.y);
             ctx.stroke();
             e.preventDefault();
+            debugLog('Начало рисования');
         }
         
         function draw(e) {
@@ -126,12 +151,14 @@
             drawing = false;
             ctx.beginPath();
             if (e) e.preventDefault();
+            debugLog('Конец рисования');
         }
         
         function clearCanvas() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             ctx.beginPath();
             showStatus('Очищено', 'success');
+            debugLog('Canvas очищен');
         }
         
         function showStatus(msg, type) {
@@ -151,28 +178,50 @@
             return true;
         }
         
+        function sendTestText() {
+            debugLog('Отправка тестового текста');
+            Telegram.WebApp.sendData("TEST_TEXT_FROM_WEB_APP");
+            showStatus('Текст отправлен!', 'success');
+            setTimeout(() => Telegram.WebApp.close(), 500);
+        }
+        
         function saveSignature() {
+            debugLog('saveSignature вызвана');
+            
             if (isCanvasEmpty()) {
                 showStatus('⚠️ Нарисуйте подпись!', 'error');
+                debugLog('Canvas пуст');
                 return;
             }
             
             showStatus('📤 Отправка...', 'success');
+            debugLog('Начинаем преобразование canvas в данные');
             
             try {
-                // Получаем изображение в максимально сжатом виде
-                const imageData = canvas.toDataURL('image/jpeg', 0.5);
-                console.log('Размер данных:', imageData.length, 'символов');
+                // Получаем данные canvas
+                const imageData = canvas.toDataURL('image/png');
+                debugLog('toDataURL выполнен, длина: ' + imageData.length);
+                debugLog('Первые 100 символов: ' + imageData.substring(0, 100));
                 
+                // Проверяем размер
                 if (imageData.length > 4000000) {
-                    showStatus('❌ Изображение слишком большое!', 'error');
+                    debugLog('Ошибка: данные слишком большие!');
+                    showStatus('❌ Данные слишком большие!', 'error');
                     return;
                 }
                 
+                debugLog('Отправляем данные в Telegram');
                 Telegram.WebApp.sendData(imageData);
+                debugLog('Данные отправлены');
                 showStatus('✅ Отправлено!', 'success');
-                setTimeout(() => Telegram.WebApp.close(), 500);
+                
+                setTimeout(() => {
+                    debugLog('Закрываем Web App');
+                    Telegram.WebApp.close();
+                }, 500);
+                
             } catch (error) {
+                debugLog('Ошибка: ' + error.message);
                 console.error('Ошибка:', error);
                 showStatus('❌ Ошибка: ' + error.message, 'error');
             }
@@ -188,7 +237,7 @@
         
         Telegram.WebApp.ready();
         Telegram.WebApp.expand();
-        console.log('Web App готов');
+        debugLog('Web App готов, версия: ' + Telegram.WebApp.version);
     </script>
 </body>
 </html>

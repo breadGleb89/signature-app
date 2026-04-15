@@ -31,11 +31,7 @@
             cursor: crosshair;
             border: 1px solid #ccc;
         }
-        .buttons {
-            display: flex;
-            gap: 12px;
-            margin-bottom: 20px;
-        }
+        .buttons { display: flex; gap: 12px; margin-bottom: 20px; }
         button {
             flex: 1;
             background: var(--tg-theme-button-color);
@@ -50,6 +46,10 @@
         .clear-btn {
             background: var(--tg-theme-secondary-bg-color);
             color: var(--tg-theme-text-color);
+        }
+        .save-btn {
+            background: #34B7F1;
+            color: white;
         }
         .info {
             text-align: center;
@@ -78,11 +78,11 @@
         
         <div class="buttons">
             <button class="clear-btn" onclick="clearCanvas()">🗑 Очистить</button>
-            <button onclick="saveAndSend()">📤 Сохранить и отправить</button>
+            <button class="save-btn" onclick="saveToPhone()">💾 Сохранить на телефон</button>
         </div>
         
         <div class="info">
-            ✍️ Нарисуйте подпись черным цветом на белом фоне
+            ✍️ Нарисуйте подпись → "Сохранить на телефон" → затем отправьте файл боту
         </div>
         
         <div id="status" class="status"></div>
@@ -93,7 +93,7 @@
         const ctx = canvas.getContext('2d');
         let drawing = false;
         
-        // Заливаем белым фоном
+        // Белый фон
         ctx.fillStyle = 'white';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         
@@ -109,7 +109,6 @@
             const scaleY = canvas.height / rect.height;
             
             let clientX, clientY;
-            
             if (e.touches) {
                 clientX = e.touches[0].clientX;
                 clientY = e.touches[0].clientY;
@@ -121,10 +120,8 @@
             
             let x = (clientX - rect.left) * scaleX;
             let y = (clientY - rect.top) * scaleY;
-            
             x = Math.max(0, Math.min(x, canvas.width));
             y = Math.max(0, Math.min(y, canvas.height));
-            
             return { x, y };
         }
         
@@ -167,19 +164,14 @@
             div.textContent = msg;
             div.className = `status ${type}`;
             setTimeout(() => {
-                if (div.textContent === msg) {
-                    div.textContent = '';
-                    div.className = 'status';
-                }
+                if (div.textContent === msg) div.textContent = '';
             }, 2000);
         }
         
         function isCanvasEmpty() {
-            // Проверяем, есть ли черные пиксели
             const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
             const pixels = imageData.data;
             for (let i = 0; i < pixels.length; i += 4) {
-                // Если пиксель не белый (R,G,B не равны 255)
                 if (pixels[i] < 250 || pixels[i+1] < 250 || pixels[i+2] < 250) {
                     return false;
                 }
@@ -187,15 +179,15 @@
             return true;
         }
         
-        function saveAndSend() {
+        function saveToPhone() {
             if (isCanvasEmpty()) {
                 showStatus('⚠️ Нарисуйте подпись!', 'error');
                 return;
             }
             
-            showStatus('📤 Подготовка...', 'success');
+            showStatus('💾 Сохранение...', 'success');
             
-            // Уменьшаем размер для отправки
+            // Уменьшаем размер
             const tempCanvas = document.createElement('canvas');
             const tempCtx = tempCanvas.getContext('2d');
             tempCanvas.width = 400;
@@ -204,55 +196,35 @@
             tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
             tempCtx.drawImage(canvas, 0, 0, tempCanvas.width, tempCanvas.height);
             
+            // Создаем ссылку для скачивания
             tempCanvas.toBlob(function(blob) {
-                const file = new File([blob], "signature.jpg", { type: "image/jpeg" });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.download = 'signature.jpg';
+                link.href = url;
+                link.click();
+                URL.revokeObjectURL(url);
                 
-                // Пытаемся поделиться
-                if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-                    navigator.share({
-                        title: 'Электронная подпись',
-                        files: [file]
-                    }).then(() => {
-                        showStatus('✅ Отправлено!', 'success');
-                        setTimeout(() => Telegram.WebApp.close(), 500);
-                    }).catch((error) => {
-                        console.log('Ошибка шаринга:', error);
-                        downloadImage(tempCanvas);
-                    });
-                } else {
-                    downloadImage(tempCanvas);
-                }
+                showStatus('✅ Сохранено! Отправьте файл боту', 'success');
+                
+                // Закрываем MiniApp через 2 секунды
+                setTimeout(() => {
+                    Telegram.WebApp.close();
+                }, 2000);
+                
             }, 'image/jpeg', 0.9);
-        }
-        
-        function downloadImage(canvas) {
-            const url = canvas.toDataURL('image/jpeg', 0.9);
-            const link = document.createElement('a');
-            link.download = 'signature.jpg';
-            link.href = url;
-            link.click();
-            
-            showStatus('✅ Изображение сохранено! Отправьте его боту', 'success');
-            setTimeout(() => Telegram.WebApp.close(), 2000);
         }
         
         canvas.addEventListener('mousedown', startDrawing);
         canvas.addEventListener('mousemove', draw);
         canvas.addEventListener('mouseup', stopDrawing);
         canvas.addEventListener('mouseleave', stopDrawing);
-        
         canvas.addEventListener('touchstart', startDrawing);
         canvas.addEventListener('touchmove', draw);
         canvas.addEventListener('touchend', stopDrawing);
         
-        canvas.addEventListener('touchmove', (e) => {
-            if (drawing) e.preventDefault();
-        }, { passive: false });
-        
         Telegram.WebApp.ready();
         Telegram.WebApp.expand();
-        
-        console.log('Web App готов');
     </script>
 </body>
 </html>

@@ -6,21 +6,56 @@
     <title>Signature</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-        body { font-family: system-ui; padding: 20px; text-align: center; }
-        canvas { border: 1px solid #ccc; cursor: crosshair; background: white; margin: 20px 0; }
-        button { margin: 5px; padding: 12px 24px; border-radius: 12px; border: none; background: #0088cc; color: white; cursor: pointer; }
-        .clear { background: #999; }
-        .status { margin-top: 20px; color: #666; }
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            padding: 20px;
+            text-align: center;
+            background: var(--tg-theme-bg-color);
+            color: var(--tg-theme-text-color);
+        }
+        canvas {
+            border: 2px solid var(--tg-theme-button-color);
+            border-radius: 12px;
+            cursor: crosshair;
+            background: white;
+            margin: 20px 0;
+            touch-action: none;
+        }
+        button {
+            margin: 5px;
+            padding: 12px 24px;
+            border-radius: 12px;
+            border: none;
+            background: var(--tg-theme-button-color);
+            color: var(--tg-theme-button-text-color);
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+        }
+        .clear {
+            background: var(--tg-theme-secondary-bg-color);
+            color: var(--tg-theme-text-color);
+        }
+        .status {
+            margin-top: 20px;
+            font-size: 14px;
+            color: var(--tg-theme-hint-color);
+        }
+        .success { color: #00cc00; }
+        .error { color: #ff4444; }
     </style>
 </head>
 <body>
-    <h3>Electronic Signature</h3>
+    <h3>✍️ Electronic Signature</h3>
     <canvas id="sigCanvas" width="350" height="150"></canvas><br>
     <button class="clear" onclick="clearCanvas()">Clear</button>
-    <button onclick="sendSignature()">Save Signature</button>
+    <button onclick="sendToServer()">Save Signature</button>
     <div id="status" class="status"></div>
 
     <script>
+        // SERVER URL - замените на ваш Render URL
+        const SERVER_URL = "https://signature-server-87mz.onrender.com/save_signature";
+        
         const canvas = document.getElementById('sigCanvas');
         const ctx = canvas.getContext('2d');
         let drawing = false;
@@ -50,8 +85,10 @@
                 x = (e.clientX - rect.left) * scaleX;
                 y = (e.clientY - rect.top) * scaleY;
             }
-            return { x: Math.min(Math.max(0, x), canvas.width), 
-                     y: Math.min(Math.max(0, y), canvas.height) };
+            return { 
+                x: Math.min(Math.max(0, x), canvas.width), 
+                y: Math.min(Math.max(0, y), canvas.height) 
+            };
         }
         
         function start(e) { 
@@ -84,8 +121,16 @@
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             ctx.fillStyle = 'white';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
-            document.getElementById('status').innerHTML = 'Canvas cleared';
-            setTimeout(() => { document.getElementById('status').innerHTML = ''; }, 1000);
+            showStatus('Canvas cleared', 'info');
+        }
+        
+        function showStatus(msg, type) {
+            const div = document.getElementById('status');
+            div.textContent = msg;
+            div.className = `status ${type}`;
+            setTimeout(() => {
+                if (div.textContent === msg) div.textContent = '';
+            }, 3000);
         }
         
         function isCanvasEmpty() {
@@ -96,14 +141,13 @@
             return true;
         }
         
-        function sendSignature() {
+        async function sendToServer() {
             if (isCanvasEmpty()) {
-                document.getElementById('status').innerHTML = 'Draw a signature first!';
-                setTimeout(() => { document.getElementById('status').innerHTML = ''; }, 2000);
+                showStatus('Draw a signature first!', 'error');
                 return;
             }
             
-            document.getElementById('status').innerHTML = 'Sending...';
+            showStatus('Sending to server...', 'info');
             
             // Create a fresh canvas with the current signature
             const tempCanvas = document.createElement('canvas');
@@ -114,13 +158,46 @@
             tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
             tempCtx.drawImage(canvas, 0, 0, tempCanvas.width, tempCanvas.height);
             
-            const dataUrl = tempCanvas.toDataURL('image/jpeg', 0.8);
-            console.log('Sending signature, size:', dataUrl.length);
-            Telegram.WebApp.sendData(dataUrl);
+            const imageData = tempCanvas.toDataURL('image/jpeg', 0.8);
+            const userId = Telegram.WebApp.initDataUnsafe.user?.id || 0;
             
-            setTimeout(() => {
-                Telegram.WebApp.close();
-            }, 500);
+            console.log('Sending to server:', SERVER_URL);
+            console.log('User ID:', userId);
+            console.log('Image size:', imageData.length);
+            
+            try {
+                const response = await fetch(SERVER_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        user_id: userId,
+                        signature: imageData
+                    })
+                });
+                
+                const result = await response.json();
+                console.log('Server response:', result);
+                
+                if (response.ok) {
+                    showStatus('Signature saved!', 'success');
+                    
+                    // Send confirmation to bot via sendData
+                    if (result.url) {
+                        Telegram.WebApp.sendData(result.url);
+                    }
+                    
+                    setTimeout(() => {
+                        Telegram.WebApp.close();
+                    }, 1000);
+                } else {
+                    showStatus('Error: ' + (result.error || 'Unknown'), 'error');
+                }
+            } catch (error) {
+                console.error('Fetch error:', error);
+                showStatus('Connection error: ' + error.message, 'error');
+            }
         }
         
         canvas.addEventListener('mousedown', start);
@@ -133,6 +210,7 @@
         
         Telegram.WebApp.ready();
         Telegram.WebApp.expand();
+        console.log('WebApp ready');
     </script>
 </body>
 </html>

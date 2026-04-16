@@ -183,7 +183,7 @@
                 if (response.ok) {
                     showStatus('Signature saved!', 'success');
                     
-                    // Send confirmation to bot via sendData
+                    // Send URL to bot via sendData
                     if (result.url) {
                         Telegram.WebApp.sendData(result.url);
                     }

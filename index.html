@@ -48,7 +48,7 @@
 </head>
 <body>
     <h3>✍️ Электронная подпись</h3>
-    <canvas id="sigCanvas" width="400" height="200"></canvas><br>
+    <canvas id="sigCanvas" width="350" height="150"></canvas><br>
     <button class="clear" onclick="clearCanvas()">Очистить</button>
     <button onclick="sendSignature()">Сохранить подпись</button>
     <div id="status" class="status"></div>
@@ -58,11 +58,11 @@
         const ctx = canvas.getContext('2d');
         let drawing = false;
         
-        // Белый фон для рисования (визуально)
+        // Белый фон
         ctx.fillStyle = 'white';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         ctx.strokeStyle = 'black';
-        ctx.lineWidth = 3;
+        ctx.lineWidth = 2.5;
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
         
@@ -132,27 +132,22 @@
             return true;
         }
         
-        // Функция для обрезки до границ подписи
         function cropToSignature(img) {
-            // Создаем временный canvas для анализа
             const analysisCanvas = document.createElement('canvas');
             const analysisCtx = analysisCanvas.getContext('2d');
             analysisCanvas.width = img.width;
             analysisCanvas.height = img.height;
             analysisCtx.drawImage(img, 0, 0);
             
-            // Получаем пиксели
             const pixels = analysisCtx.getImageData(0, 0, img.width, img.height);
             const data = pixels.data;
             
-            // Находим границы подписи (где есть НЕ белые пиксели)
             let minX = img.width, minY = img.height, maxX = 0, maxY = 0;
             let hasPixels = false;
             
             for (let y = 0; y < img.height; y++) {
                 for (let x = 0; x < img.width; x++) {
                     const idx = (y * img.width + x) * 4;
-                    // Проверяем, не белый ли пиксель (R,G,B не все 255)
                     if (data[idx] < 250 || data[idx+1] < 250 || data[idx+2] < 250) {
                         hasPixels = true;
                         if (x < minX) minX = x;
@@ -163,24 +158,20 @@
                 }
             }
             
-            if (!hasPixels) {
-                return null;
-            }
+            if (!hasPixels) return null;
             
-            // Добавляем небольшие отступы (10 пикселей)
-            const padding = 10;
+            const padding = 8;
             minX = Math.max(0, minX - padding);
             minY = Math.max(0, minY - padding);
             maxX = Math.min(img.width, maxX + padding);
             maxY = Math.min(img.height, maxY + padding);
             
-            // Создаем обрезанный canvas с ПРОЗРАЧНЫМ фоном
             const croppedCanvas = document.createElement('canvas');
             const croppedCtx = croppedCanvas.getContext('2d');
             croppedCanvas.width = maxX - minX;
             croppedCanvas.height = maxY - minY;
-            
-            // Рисуем только подпись (без фона)
+            croppedCtx.fillStyle = 'white';
+            croppedCtx.fillRect(0, 0, croppedCanvas.width, croppedCanvas.height);
             croppedCtx.drawImage(img, minX, minY, croppedCanvas.width, croppedCanvas.height, 0, 0, croppedCanvas.width, croppedCanvas.height);
             
             return croppedCanvas;
@@ -194,7 +185,6 @@
             
             showStatus('Обработка...', 'info');
             
-            // Создаем временный canvas с текущей подписью
             const tempCanvas = document.createElement('canvas');
             tempCanvas.width = canvas.width;
             tempCanvas.height = canvas.height;
@@ -203,44 +193,39 @@
             tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
             tempCtx.drawImage(canvas, 0, 0);
             
-            // Обрезаем подпись
-            const croppedCanvas = cropToSignature(tempCanvas);
-            
-            if (!croppedCanvas) {
+            let finalCanvas = cropToSignature(tempCanvas);
+            if (!finalCanvas) {
                 showStatus('Ошибка обработки', 'error');
                 return;
             }
             
-            // Дополнительно уменьшаем размер (если подпись слишком большая)
-            let finalCanvas = croppedCanvas;
-            let maxWidth = 300;
-            let maxHeight = 120;
-            
-            if (finalCanvas.width > maxWidth || finalCanvas.height > maxHeight) {
-                const scale = Math.min(maxWidth / finalCanvas.width, maxHeight / finalCanvas.height);
+            // Уменьшаем до 250x100 максимум
+            if (finalCanvas.width > 250 || finalCanvas.height > 100) {
+                const scale = Math.min(250 / finalCanvas.width, 100 / finalCanvas.height);
                 const newWidth = Math.floor(finalCanvas.width * scale);
                 const newHeight = Math.floor(finalCanvas.height * scale);
-                
                 const resizedCanvas = document.createElement('canvas');
                 resizedCanvas.width = newWidth;
                 resizedCanvas.height = newHeight;
                 const resizedCtx = resizedCanvas.getContext('2d');
+                resizedCtx.fillStyle = 'white';
+                resizedCtx.fillRect(0, 0, newWidth, newHeight);
                 resizedCtx.drawImage(finalCanvas, 0, 0, newWidth, newHeight);
                 finalCanvas = resizedCanvas;
             }
             
-            // Конвертируем в PNG (поддерживает прозрачность)
-            const imageData = finalCanvas.toDataURL('image/png');
+            // JPEG с качеством 0.6 (сильное сжатие)
+            const imageData = finalCanvas.toDataURL('image/jpeg', 0.6);
             const sizeKB = Math.round(imageData.length / 1024);
             
+            if (imageData.length > 30000) {
+                showStatus(`Слишком большой (${sizeKB} KB)`, 'error');
+                return;
+            }
+            
             showStatus(`Отправка (${sizeKB} KB)...`, 'info');
-            console.log('Размер PNG:', imageData.length, 'байт');
-            
-            // Отправляем боту
             Telegram.WebApp.sendData(imageData);
-            showStatus('Отправлено!', 'success');
             
-            // Закрываем Web App через 0.5 секунды
             setTimeout(() => {
                 Telegram.WebApp.close();
             }, 500);

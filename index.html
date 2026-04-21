@@ -58,7 +58,7 @@
         const ctx = canvas.getContext('2d');
         let drawing = false;
         
-        // Белый фон
+        // Белый фон для рисования
         ctx.fillStyle = 'white';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         ctx.strokeStyle = 'black';
@@ -160,7 +160,7 @@
             
             if (!hasPixels) return null;
             
-            const padding = 8;
+            const padding = 5;
             minX = Math.max(0, minX - padding);
             minY = Math.max(0, minY - padding);
             maxX = Math.min(img.width, maxX + padding);
@@ -199,31 +199,27 @@
                 return;
             }
             
-            // Уменьшаем до 250x100 максимум
-            if (finalCanvas.width > 250 || finalCanvas.height > 100) {
-                const scale = Math.min(250 / finalCanvas.width, 100 / finalCanvas.height);
-                const newWidth = Math.floor(finalCanvas.width * scale);
-                const newHeight = Math.floor(finalCanvas.height * scale);
-                const resizedCanvas = document.createElement('canvas');
-                resizedCanvas.width = newWidth;
-                resizedCanvas.height = newHeight;
-                const resizedCtx = resizedCanvas.getContext('2d');
-                resizedCtx.fillStyle = 'white';
-                resizedCtx.fillRect(0, 0, newWidth, newHeight);
-                resizedCtx.drawImage(finalCanvas, 0, 0, newWidth, newHeight);
-                finalCanvas = resizedCanvas;
-            }
+            // РАЗМЕР ПОДПИСИ: 1.6 см × 0.8 см
+            // При 96 DPI: 1.6 см = 60 пикселей, 0.8 см = 30 пикселей
+            // Но для лучшего качества используем 120x60 (2x размер)
+            const targetWidth = 120;   // 1.6 см × 75 DPI ≈ 47px, берем 60px * 2 = 120px
+            const targetHeight = 60;   // 0.8 см × 75 DPI ≈ 24px, берем 30px * 2 = 60px
             
-            // JPEG с качеством 0.6 (сильное сжатие)
-            const imageData = finalCanvas.toDataURL('image/jpeg', 0.6);
+            const resizedCanvas = document.createElement('canvas');
+            resizedCanvas.width = targetWidth;
+            resizedCanvas.height = targetHeight;
+            const resizedCtx = resizedCanvas.getContext('2d');
+            resizedCtx.fillStyle = 'white';
+            resizedCtx.fillRect(0, 0, targetWidth, targetHeight);
+            resizedCtx.drawImage(finalCanvas, 0, 0, targetWidth, targetHeight);
+            
+            // JPEG с качеством 0.5 (хорошее сжатие)
+            const imageData = resizedCanvas.toDataURL('image/jpeg', 0.5);
             const sizeKB = Math.round(imageData.length / 1024);
             
-            if (imageData.length > 30000) {
-                showStatus(`Слишком большой (${sizeKB} KB)`, 'error');
-                return;
-            }
+            showStatus(`Размер: ${sizeKB} KB`, 'info');
+            console.log(`Подпись: ${targetWidth}x${targetHeight}px, ${imageData.length} байт`);
             
-            showStatus(`Отправка (${sizeKB} KB)...`, 'info');
             Telegram.WebApp.sendData(imageData);
             
             setTimeout(() => {

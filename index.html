@@ -48,7 +48,7 @@
 </head>
 <body>
     <h3>✍️ Электронная подпись</h3>
-    <canvas id="sigCanvas" width="350" height="150"></canvas><br>
+    <canvas id="sigCanvas" width="300" height="120"></canvas><br>
     <button class="clear" onclick="clearCanvas()">Очистить</button>
     <button onclick="sendSignature()">Сохранить подпись</button>
     <div id="status" class="status"></div>
@@ -58,11 +58,10 @@
         const ctx = canvas.getContext('2d');
         let drawing = false;
         
-        // Белый фон для рисования
         ctx.fillStyle = 'white';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         ctx.strokeStyle = 'black';
-        ctx.lineWidth = 2.5;
+        ctx.lineWidth = 2;
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
         
@@ -161,8 +160,7 @@
             
             if (!hasPixels) return null;
             
-            // Добавляем небольшие отступы (5 пикселей)
-            const padding = 5;
+            const padding = 3;
             minX = Math.max(0, minX - padding);
             minY = Math.max(0, minY - padding);
             maxX = Math.min(img.width, maxX + padding);
@@ -187,7 +185,7 @@
             
             showStatus('Обработка...', 'info');
             
-            // 1. Получаем изображение с canvas
+            // 1. Получаем изображение
             const tempCanvas = document.createElement('canvas');
             tempCanvas.width = canvas.width;
             tempCanvas.height = canvas.height;
@@ -196,17 +194,16 @@
             tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
             tempCtx.drawImage(canvas, 0, 0);
             
-            // 2. Обрезаем до границ подписи
+            // 2. Обрезаем
             let croppedCanvas = cropToSignature(tempCanvas);
             if (!croppedCanvas) {
                 showStatus('Ошибка обработки', 'error');
                 return;
             }
             
-            // 3. Изменяем размер до 1.6 см × 0.8 см
-            // При 96 DPI: 1.6 см = 60 пикселей, 0.8 см = 30 пикселей
-            const targetWidth = 60;   // 1.6 см
-            const targetHeight = 30;  // 0.8 см
+            // 3. Уменьшаем до финального размера (1.6 см × 0.8 см = 60×30 пикселей)
+            const targetWidth = 60;
+            const targetHeight = 30;
             
             const finalCanvas = document.createElement('canvas');
             finalCanvas.width = targetWidth;
@@ -216,12 +213,39 @@
             finalCtx.fillRect(0, 0, targetWidth, targetHeight);
             finalCtx.drawImage(croppedCanvas, 0, 0, targetWidth, targetHeight);
             
-            // 4. JPEG с качеством 0.5
-            const imageData = finalCanvas.toDataURL('image/jpeg', 0.5);
-            const sizeKB = Math.round(imageData.length / 1024);
+            // 4. Пробуем разное качество для уменьшения размера
+            let quality = 0.5;
+            let imageData = finalCanvas.toDataURL('image/jpeg', quality);
+            let sizeKB = Math.round(imageData.length / 1024);
             
-            showStatus(`${targetWidth}x${targetHeight}px, ${sizeKB} KB`, 'info');
-            console.log(`Подпись: ${targetWidth}x${targetHeight}px, ${imageData.length} байт`);
+            // Если размер больше 15 KB, уменьшаем качество
+            let attempts = 0;
+            while (imageData.length > 15000 && quality > 0.2 && attempts < 5) {
+                quality -= 0.1;
+                imageData = finalCanvas.toDataURL('image/jpeg', quality);
+                sizeKB = Math.round(imageData.length / 1024);
+                attempts++;
+            }
+            
+            // Если всё равно слишком большой, уменьшаем ещё
+            if (imageData.length > 20000) {
+                const smallerCanvas = document.createElement('canvas');
+                smallerCanvas.width = 50;
+                smallerCanvas.height = 25;
+                const smallerCtx = smallerCanvas.getContext('2d');
+                smallerCtx.fillStyle = 'white';
+                smallerCtx.fillRect(0, 0, 50, 25);
+                smallerCtx.drawImage(finalCanvas, 0, 0, 50, 25);
+                imageData = smallerCanvas.toDataURL('image/jpeg', 0.4);
+                sizeKB = Math.round(imageData.length / 1024);
+            }
+            
+            showStatus(`${sizeKB} KB`, 'info');
+            
+            if (imageData.length > 30000) {
+                showStatus('Слишком большая подпись!', 'error');
+                return;
+            }
             
             Telegram.WebApp.sendData(imageData);
             

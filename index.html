@@ -48,12 +48,14 @@
 </head>
 <body>
     <h3>✍️ Электронная подпись</h3>
-    <canvas id="sigCanvas" width="400" height="200"></canvas><br>
+    <canvas id="sigCanvas" width="350" height="150"></canvas><br>
     <button class="clear" onclick="clearCanvas()">Очистить</button>
     <button onclick="sendSignature()">Сохранить подпись</button>
     <div id="status" class="status"></div>
 
     <script>
+        const SERVER_URL = "https://signature-server-87mz.onrender.com/save_signature";
+        
         const canvas = document.getElementById('sigCanvas');
         const ctx = canvas.getContext('2d');
         let drawing = false;
@@ -131,133 +133,47 @@
             return true;
         }
         
-        // Функция для обрезки до границ подписи
-        function cropToSignature(img) {
-            const analysisCanvas = document.createElement('canvas');
-            const analysisCtx = analysisCanvas.getContext('2d');
-            analysisCanvas.width = img.width;
-            analysisCanvas.height = img.height;
-            analysisCtx.drawImage(img, 0, 0);
-            
-            const pixels = analysisCtx.getImageData(0, 0, img.width, img.height);
-            const data = pixels.data;
-            
-            let minX = img.width, minY = img.height, maxX = 0, maxY = 0;
-            let hasPixels = false;
-            
-            for (let y = 0; y < img.height; y++) {
-                for (let x = 0; x < img.width; x++) {
-                    const idx = (y * img.width + x) * 4;
-                    if (data[idx] < 250 || data[idx+1] < 250 || data[idx+2] < 250) {
-                        hasPixels = true;
-                        if (x < minX) minX = x;
-                        if (x > maxX) maxX = x;
-                        if (y < minY) minY = y;
-                        if (y > maxY) maxY = y;
-                    }
-                }
-            }
-            
-            if (!hasPixels) return null;
-            
-            const padding = 10;
-            minX = Math.max(0, minX - padding);
-            minY = Math.max(0, minY - padding);
-            maxX = Math.min(img.width, maxX + padding);
-            maxY = Math.min(img.height, maxY + padding);
-            
-            const croppedCanvas = document.createElement('canvas');
-            const croppedCtx = croppedCanvas.getContext('2d');
-            croppedCanvas.width = maxX - minX;
-            croppedCanvas.height = maxY - minY;
-            croppedCtx.fillStyle = 'white';
-            croppedCtx.fillRect(0, 0, croppedCanvas.width, croppedCanvas.height);
-            croppedCtx.drawImage(img, minX, minY, croppedCanvas.width, croppedCanvas.height, 0, 0, croppedCanvas.width, croppedCanvas.height);
-            
-            return croppedCanvas;
-        }
-        
         async function sendSignature() {
             if (isCanvasEmpty()) {
                 showStatus('Нарисуйте подпись!', 'error');
                 return;
             }
             
-            showStatus('Обработка...', 'info');
+            showStatus('Отправка на сервер...', 'info');
             
+            // Уменьшаем размер
             const tempCanvas = document.createElement('canvas');
-            tempCanvas.width = canvas.width;
-            tempCanvas.height = canvas.height;
+            tempCanvas.width = 300;
+            tempCanvas.height = 120;
             const tempCtx = tempCanvas.getContext('2d');
             tempCtx.fillStyle = 'white';
             tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
-            tempCtx.drawImage(canvas, 0, 0);
+            tempCtx.drawImage(canvas, 0, 0, tempCanvas.width, tempCanvas.height);
             
-            let croppedCanvas = cropToSignature(tempCanvas);
-            if (!croppedCanvas) {
-                showStatus('Ошибка обработки', 'error');
-                return;
+            const imageData = tempCanvas.toDataURL('image/jpeg', 0.8);
+            const userId = Telegram.WebApp.initDataUnsafe.user?.id || 0;
+            
+            try {
+                const response = await fetch(SERVER_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_id: userId, signature: imageData })
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok && result.url) {
+                    showStatus('✅ Подпись сохранена!', 'success');
+                    // Отправляем URL боту
+                    Telegram.WebApp.sendData(result.url);
+                    setTimeout(() => Telegram.WebApp.close(), 500);
+                } else {
+                    showStatus('❌ Ошибка: ' + (result.error || 'Unknown'), 'error');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showStatus('❌ Ошибка соединения', 'error');
             }
-            
-            // Хороший размер для читаемости: 300×150 пикселей
-            let targetWidth = croppedCanvas.width;
-            let targetHeight = croppedCanvas.height;
-            
-            // Если ширина больше 300, уменьшаем
-            if (targetWidth > 300) {
-                const scale = 300 / targetWidth;
-                targetWidth = 300;
-                targetHeight = Math.floor(targetHeight * scale);
-            }
-            
-            // Если высота больше 150, уменьшаем
-            if (targetHeight > 150) {
-                const scale = 150 / targetHeight;
-                targetHeight = 150;
-                targetWidth = Math.floor(targetWidth * scale);
-            }
-            
-            const finalCanvas = document.createElement('canvas');
-            finalCanvas.width = targetWidth;
-            finalCanvas.height = targetHeight;
-            const finalCtx = finalCanvas.getContext('2d');
-            finalCtx.fillStyle = 'white';
-            finalCtx.fillRect(0, 0, targetWidth, targetHeight);
-            finalCtx.drawImage(croppedCanvas, 0, 0, targetWidth, targetHeight);
-            
-            // Высокое качество JPEG
-            let quality = 0.85;
-            let imageData = finalCanvas.toDataURL('image/jpeg', quality);
-            let sizeKB = Math.round(imageData.length / 1024);
-            
-            // Если размер больше 40 KB, уменьшаем качество
-            if (imageData.length > 40000) {
-                quality = 0.7;
-                imageData = finalCanvas.toDataURL('image/jpeg', quality);
-                sizeKB = Math.round(imageData.length / 1024);
-            }
-            
-            // Если всё ещё больше, уменьшаем размер
-            if (imageData.length > 40000) {
-                const smallerCanvas = document.createElement('canvas');
-                smallerCanvas.width = 250;
-                smallerCanvas.height = Math.floor(250 * targetHeight / targetWidth);
-                const smallerCtx = smallerCanvas.getContext('2d');
-                smallerCtx.fillStyle = 'white';
-                smallerCtx.fillRect(0, 0, smallerCanvas.width, smallerCanvas.height);
-                smallerCtx.drawImage(finalCanvas, 0, 0, smallerCanvas.width, smallerCanvas.height);
-                imageData = smallerCanvas.toDataURL('image/jpeg', 0.7);
-                sizeKB = Math.round(imageData.length / 1024);
-            }
-            
-            showStatus(`Размер: ${targetWidth}×${targetHeight}px, ${sizeKB} KB`, 'info');
-            console.log(`Подпись: ${targetWidth}×${targetHeight}px, ${imageData.length} байт`);
-            
-            Telegram.WebApp.sendData(imageData);
-            
-            setTimeout(() => {
-                Telegram.WebApp.close();
-            }, 500);
         }
         
         canvas.addEventListener('mousedown', start);

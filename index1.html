@@ -55,6 +55,10 @@
             background: var(--tg-theme-bg-color);
             color: var(--tg-theme-text-color);
         }
+        .form-group input:focus, .form-group textarea:focus {
+            outline: none;
+            border-color: var(--tg-theme-button-color);
+        }
         .items-header {
             display: flex;
             justify-content: space-between;
@@ -78,6 +82,7 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            border: 1px solid rgba(0, 0, 0, 0.05);
         }
         .item-info { flex: 1; }
         .item-name { font-weight: 500; margin-bottom: 4px; }
@@ -346,8 +351,8 @@
                 <input type="number" id="item_price" placeholder="120.50" step="0.01">
             </div>
             <div class="modal-buttons">
-                <button onclick="closeItemModal()">Отмена</button>
-                <button onclick="saveItem()">Сохранить</button>
+                <button onclick="closeItemModal()" style="background: #6c757d; color: white;">Отмена</button>
+                <button onclick="saveItem()" style="background: var(--tg-theme-button-color); color: white;">Сохранить</button>
             </div>
         </div>
     </div>
@@ -359,7 +364,7 @@
         tg.ready();
         tg.expand();
         
-        const SERVER_URL = "https://signature-server-87mz.onrender.com/save_signature";
+        const SERVER_URL = "https://signature-server-87mz.onrender.com";
         
         let items = [];
         let editingIndex = -1;
@@ -514,7 +519,7 @@
             return true;
         }
 
-        function collectFormData() {
+        function collectFullFormData(signatureUrl) {
             return {
                 name: document.getElementById('name').value,
                 order_date: document.getElementById('order_date').value.split('-').reverse().join('.'),
@@ -536,7 +541,8 @@
                 type: document.getElementById('type').value,
                 weight: document.getElementById('weight').value,
                 places: document.getElementById('places').value,
-                items: items
+                items: items,
+                signature_url: signatureUrl
             };
         }
 
@@ -544,20 +550,27 @@
             const signatureData = canvas.toDataURL('image/jpeg', 0.5);
             const userId = tg.initDataUnsafe?.user?.id || 0;
             
-            try {
-                const response = await fetch(SERVER_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ user_id: userId, signature: signatureData })
-                });
-                
-                if (!response.ok) throw new Error('Ошибка загрузки');
-                const result = await response.json();
-                return result.url;
-            } catch (error) {
-                console.error('Ошибка загрузки подписи:', error);
-                throw error;
-            }
+            const response = await fetch(`${SERVER_URL}/save_signature`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ user_id: userId, signature: signatureData })
+            });
+            
+            if (!response.ok) throw new Error('Ошибка загрузки подписи');
+            const result = await response.json();
+            return result.url;
+        }
+
+        async function saveFormData(formData) {
+            const response = await fetch(`${SERVER_URL}/save_form_data`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(formData)
+            });
+            
+            if (!response.ok) throw new Error('Ошибка сохранения данных');
+            const result = await response.json();
+            return result.session_id;
         }
 
         function showStatus(msg, type) {
@@ -575,19 +588,18 @@
             btn.innerHTML = '<span class="spinner"></span> Загрузка подписи...';
             
             try {
-                // Сначала загружаем подпись на сервер
                 const signatureUrl = await uploadSignature();
                 
-                btn.innerHTML = '<span class="spinner"></span> Отправка данных...';
+                btn.innerHTML = '<span class="spinner"></span> Сохранение данных...';
                 
-                // Собираем данные без подписи
-                const formData = collectFormData();
-                formData.signature_url = signatureUrl;
+                const fullFormData = collectFullFormData(signatureUrl);
+                const sessionId = await saveFormData(fullFormData);
                 
-                // Отправляем данные в бот
-                tg.sendData(JSON.stringify(formData));
+                btn.innerHTML = '<span class="spinner"></span> Отправка...';
                 
-                showStatus('✅ Отправлено!', 'success');
+                tg.sendData(JSON.stringify({ session_id: sessionId }));
+                
+                showStatus('✅ Данные отправлены!', 'success');
                 setTimeout(() => tg.close(), 1500);
                 
             } catch (error) {

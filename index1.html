@@ -55,10 +55,6 @@
             background: var(--tg-theme-bg-color);
             color: var(--tg-theme-text-color);
         }
-        .form-group input:focus, .form-group textarea:focus {
-            outline: none;
-            border-color: var(--tg-theme-button-color);
-        }
         .items-header {
             display: flex;
             justify-content: space-between;
@@ -545,33 +541,34 @@
                 signature_url: signatureUrl
             };
         }
-        
-        async function saveFormData(formData) {
-            // ОТПРАВЛЯЕМ form_data ВНУТРИ объекта
-            const response = await fetch(`${SERVER_URL}/save_form_data`, {
+
+        async function uploadSignature() {
+            const signatureData = canvas.toDataURL('image/jpeg', 0.7);
+            const userId = tg.initDataUnsafe?.user?.id || 0;
+            
+            const response = await fetch(`${SERVER_URL}/save_signature`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ form_data: formData })  // 👈 ВАЖНО!
+                body: JSON.stringify({ user_id: userId, signature: signatureData })
             });
             
-            if (!response.ok) {
-                const error = await response.text();
-                console.error('Ошибка сервера:', error);
-                throw new Error(`Сервер вернул ${response.status}`);
-            }
-            
+            if (!response.ok) throw new Error('Ошибка загрузки подписи');
             const result = await response.json();
-            return result.session_id;
+            return result.url;
         }
 
         async function saveFormData(formData) {
             const response = await fetch(`${SERVER_URL}/save_form_data`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formData)
+                body: JSON.stringify({ form_data: formData })
             });
             
-            if (!response.ok) throw new Error('Ошибка сохранения данных');
+            if (!response.ok) {
+                const error = await response.text();
+                throw new Error(`Ошибка сервера: ${error}`);
+            }
+            
             const result = await response.json();
             return result.session_id;
         }
@@ -588,17 +585,15 @@
             
             const btn = document.querySelector('.submit-btn');
             btn.disabled = true;
-            btn.innerHTML = '<span class="spinner"></span> Загрузка подписи...';
+            btn.innerHTML = '<span class="spinner"></span> Загрузка...';
             
             try {
                 const signatureUrl = await uploadSignature();
-                
-                btn.innerHTML = '<span class="spinner"></span> Сохранение данных...';
+                console.log("Подпись загружена:", signatureUrl);
                 
                 const fullFormData = collectFullFormData(signatureUrl);
                 const sessionId = await saveFormData(fullFormData);
-                
-                btn.innerHTML = '<span class="spinner"></span> Отправка...';
+                console.log("Session ID:", sessionId);
                 
                 tg.sendData(JSON.stringify({ session_id: sessionId }));
                 

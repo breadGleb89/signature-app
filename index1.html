@@ -545,20 +545,23 @@
                 signature_url: signatureUrl
             };
         }
-
-        async function uploadSignature() {
-            const signatureData = canvas.toDataURL('image/jpeg', 0.5);
-            const userId = tg.initDataUnsafe?.user?.id || 0;
-            
-            const response = await fetch(`${SERVER_URL}/save_signature`, {
+        
+        async function saveFormData(formData) {
+            // ОТПРАВЛЯЕМ form_data ВНУТРИ объекта
+            const response = await fetch(`${SERVER_URL}/save_form_data`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ user_id: userId, signature: signatureData })
+                body: JSON.stringify({ form_data: formData })  // 👈 ВАЖНО!
             });
             
-            if (!response.ok) throw new Error('Ошибка загрузки подписи');
+            if (!response.ok) {
+                const error = await response.text();
+                console.error('Ошибка сервера:', error);
+                throw new Error(`Сервер вернул ${response.status}`);
+            }
+            
             const result = await response.json();
-            return result.url;
+            return result.session_id;
         }
 
         async function saveFormData(formData) {

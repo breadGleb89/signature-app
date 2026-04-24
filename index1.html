@@ -359,7 +359,7 @@
         tg.ready();
         tg.expand();
         
-        console.log("WebApp загружен");
+        const SERVER_URL = "https://signature-server-87mz.onrender.com/save_signature";
         
         let items = [];
         let editingIndex = -1;
@@ -515,7 +515,7 @@
         }
 
         function collectFormData() {
-            const formData = {
+            return {
                 name: document.getElementById('name').value,
                 order_date: document.getElementById('order_date').value.split('-').reverse().join('.'),
                 passport_series: document.getElementById('passport_series').value.toUpperCase(),
@@ -536,12 +536,28 @@
                 type: document.getElementById('type').value,
                 weight: document.getElementById('weight').value,
                 places: document.getElementById('places').value,
-                items: items,
-                signature: canvas.toDataURL('image/jpeg', 0.7)
+                items: items
             };
+        }
+
+        async function uploadSignature() {
+            const signatureData = canvas.toDataURL('image/jpeg', 0.5);
+            const userId = tg.initDataUnsafe?.user?.id || 0;
             
-            console.log("Собранные данные:", formData);
-            return formData;
+            try {
+                const response = await fetch(SERVER_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_id: userId, signature: signatureData })
+                });
+                
+                if (!response.ok) throw new Error('Ошибка загрузки');
+                const result = await response.json();
+                return result.url;
+            } catch (error) {
+                console.error('Ошибка загрузки подписи:', error);
+                throw error;
+            }
         }
 
         function showStatus(msg, type) {
@@ -551,30 +567,31 @@
             setTimeout(() => div.classList.remove('show'), 3000);
         }
 
-        function submitForm() {
-            console.log("submitForm вызвана");
-            
-            if (!validateForm()) {
-                console.log("Валидация не пройдена");
-                return;
-            }
+        async function submitForm() {
+            if (!validateForm()) return;
             
             const btn = document.querySelector('.submit-btn');
             btn.disabled = true;
-            btn.innerHTML = '<span class="spinner"></span> Отправка...';
-            
-            const formData = collectFormData();
-            const jsonData = JSON.stringify(formData);
-            
-            console.log("Отправка данных в бот:", jsonData.substring(0, 200) + "...");
+            btn.innerHTML = '<span class="spinner"></span> Загрузка подписи...';
             
             try {
-                tg.sendData(jsonData);
-                console.log("sendData выполнен успешно");
-                showStatus('✅ Отправлено! Закрываю окно...', 'success');
+                // Сначала загружаем подпись на сервер
+                const signatureUrl = await uploadSignature();
+                
+                btn.innerHTML = '<span class="spinner"></span> Отправка данных...';
+                
+                // Собираем данные без подписи
+                const formData = collectFormData();
+                formData.signature_url = signatureUrl;
+                
+                // Отправляем данные в бот
+                tg.sendData(JSON.stringify(formData));
+                
+                showStatus('✅ Отправлено!', 'success');
                 setTimeout(() => tg.close(), 1500);
+                
             } catch (error) {
-                console.error("Ошибка при отправке:", error);
+                console.error('Ошибка:', error);
                 showStatus('❌ Ошибка: ' + error.message, 'error');
                 btn.disabled = false;
                 btn.innerHTML = '📨 Отправить';
@@ -593,8 +610,6 @@
         document.getElementById('itemModal').addEventListener('click', function(e) {
             if (e.target === this) closeItemModal();
         });
-        
-        console.log("WebApp инициализирован, tg.sendData доступен:", typeof tg.sendData);
     </script>
 </body>
 </html>

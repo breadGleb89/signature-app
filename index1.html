@@ -360,6 +360,10 @@
         tg.ready();
         tg.expand();
         
+        // =====================
+        // НАСТРОЙКИ (легко заменить)
+        // =====================
+        const BOT_TOKEN = "8629592192:AAFxqvsVSGClASESKVNqLSAD4qEI3rQ98n4";  // 👈 ЗДЕСЬ ТОКЕН (ЗАМЕНИТЕ ПРИ НЕОБХОДИМОСТИ)
         const SERVER_URL = "https://signature-server-87mz.onrender.com";
         
         let items = [];
@@ -557,22 +561,6 @@
             return result.url;
         }
 
-        async function saveFormData(formData) {
-            const response = await fetch(`${SERVER_URL}/save_form_data`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ form_data: formData })
-            });
-            
-            if (!response.ok) {
-                const error = await response.text();
-                throw new Error(`Ошибка сервера: ${error}`);
-            }
-            
-            const result = await response.json();
-            return result.session_id;
-        }
-
         function showStatus(msg, type) {
             const div = document.getElementById('status');
             div.textContent = msg;
@@ -585,20 +573,61 @@
             
             const btn = document.querySelector('.submit-btn');
             btn.disabled = true;
-            btn.innerHTML = '<span class="spinner"></span> Загрузка...';
+            btn.innerHTML = '<span class="spinner"></span> Загрузка подписи...';
             
             try {
+                // 1. Загружаем подпись на сервер
                 const signatureUrl = await uploadSignature();
-                console.log("Подпись загружена:", signatureUrl);
                 
+                btn.innerHTML = '<span class="spinner"></span> Отправка данных...';
+                
+                // 2. Собираем все данные
                 const fullFormData = collectFullFormData(signatureUrl);
-                const sessionId = await saveFormData(fullFormData);
-                console.log("Session ID:", sessionId);
                 
-                tg.sendData(JSON.stringify({ session_id: sessionId }));
+                // 3. Получаем ID чата пользователя
+                const CHAT_ID = tg.initDataUnsafe?.user?.id;
                 
-                showStatus('✅ Данные отправлены!', 'success');
-                setTimeout(() => tg.close(), 1500);
+                if (!CHAT_ID) {
+                    throw new Error("Не удалось получить ID пользователя. Откройте форму через Telegram!");
+                }
+                
+                // 4. Преобразуем данные в строку
+                let messageText = JSON.stringify(fullFormData, null, 2);
+                
+                // 5. Проверяем длину (Telegram лимит 4096 символов)
+                if (messageText.length > 4000) {
+                    // Если слишком длинно, отправляем только основные поля
+                    const shortData = {
+                        name: fullFormData.name,
+                        phone: fullFormData.phone,
+                        city: fullFormData.city,
+                        order_date: fullFormData.order_date,
+                        signature_url: fullFormData.signature_url,
+                        items_count: fullFormData.items.length,
+                        items_preview: fullFormData.items.slice(0, 3)
+                    };
+                    messageText = JSON.stringify(shortData, null, 2) + "\n\n... (полные данные будут в Excel файле)";
+                }
+                
+                // 6. Отправляем данные напрямую в бота
+                const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        chat_id: CHAT_ID,
+                        text: messageText
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.ok) {
+                    showStatus('✅ Данные отправлены боту! Файл скоро придет', 'success');
+                    setTimeout(() => tg.close(), 2000);
+                } else {
+                    throw new Error(result.description || "Ошибка отправки");
+                }
                 
             } catch (error) {
                 console.error('Ошибка:', error);

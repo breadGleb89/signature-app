@@ -6,24 +6,14 @@
     <title>Оформление заказ-поручения</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             background: var(--tg-theme-bg-color);
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
             padding: 16px;
             padding-bottom: 80px;
         }
-
-        .container {
-            max-width: 600px;
-            margin: 0 auto;
-        }
-
+        .container { max-width: 600px; margin: 0 auto; }
         .header {
             text-align: center;
             margin-bottom: 24px;
@@ -32,19 +22,13 @@
             border-radius: 20px;
             color: white;
         }
-
-        .header h1 {
-            font-size: 24px;
-            margin-bottom: 8px;
-        }
-
+        .header h1 { font-size: 24px; margin-bottom: 8px; }
         .section {
             background: var(--tg-theme-secondary-bg-color);
             border-radius: 16px;
             padding: 16px;
             margin-bottom: 16px;
         }
-
         .section-title {
             font-size: 18px;
             font-weight: 600;
@@ -54,11 +38,7 @@
             gap: 8px;
             color: var(--tg-theme-text-color);
         }
-
-        .form-group {
-            margin-bottom: 16px;
-        }
-
+        .form-group { margin-bottom: 16px; }
         .form-group label {
             display: block;
             font-size: 14px;
@@ -66,10 +46,7 @@
             margin-bottom: 6px;
             color: var(--tg-theme-hint-color);
         }
-
-        .form-group input,
-        .form-group textarea,
-        .form-group select {
+        .form-group input, .form-group textarea {
             width: 100%;
             padding: 12px;
             border: 1px solid rgba(0, 0, 0, 0.1);
@@ -77,37 +54,22 @@
             font-size: 16px;
             background: var(--tg-theme-bg-color);
             color: var(--tg-theme-text-color);
-            transition: all 0.2s ease;
         }
-
-        .form-group input:focus,
-        .form-group textarea:focus {
-            outline: none;
-            border-color: var(--tg-theme-button-color);
-        }
-
         .items-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
             margin-bottom: 12px;
         }
-
         .add-item-btn {
             padding: 8px 16px;
             background: var(--tg-theme-button-color);
             color: var(--tg-theme-button-text-color);
             border: none;
             border-radius: 20px;
-            font-size: 14px;
             cursor: pointer;
         }
-
-        .items-list {
-            max-height: 400px;
-            overflow-y: auto;
-        }
-
+        .items-list { max-height: 400px; overflow-y: auto; }
         .item-card {
             background: var(--tg-theme-bg-color);
             border-radius: 12px;
@@ -116,28 +78,11 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            border: 1px solid rgba(0, 0, 0, 0.05);
         }
-
-        .item-info {
-            flex: 1;
-        }
-
-        .item-name {
-            font-weight: 500;
-            margin-bottom: 4px;
-        }
-
-        .item-details {
-            font-size: 12px;
-            color: var(--tg-theme-hint-color);
-        }
-
-        .item-actions {
-            display: flex;
-            gap: 8px;
-        }
-
+        .item-info { flex: 1; }
+        .item-name { font-weight: 500; margin-bottom: 4px; }
+        .item-details { font-size: 12px; color: var(--tg-theme-hint-color); }
+        .item-actions { display: flex; gap: 8px; }
         .edit-item-btn, .delete-item-btn {
             padding: 6px 12px;
             border: none;
@@ -145,17 +90,8 @@
             cursor: pointer;
             font-size: 12px;
         }
-
-        .edit-item-btn {
-            background: #ffc107;
-            color: #000;
-        }
-
-        .delete-item-btn {
-            background: #dc3545;
-            color: white;
-        }
-
+        .edit-item-btn { background: #ffc107; color: #000; }
+        .delete-item-btn { background: #dc3545; color: white; }
         .modal {
             display: none;
             position: fixed;
@@ -163,12 +99,11 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.5);
+            background: rgba(0,0,0,0.5);
             z-index: 1000;
             align-items: center;
             justify-content: center;
         }
-
         .modal-content {
             background: var(--tg-theme-bg-color);
             border-radius: 20px;
@@ -176,13 +111,11 @@
             width: 90%;
             max-width: 400px;
         }
-
         .modal-buttons {
             display: flex;
             gap: 12px;
             margin-top: 20px;
         }
-
         .modal-buttons button {
             flex: 1;
             padding: 12px;
@@ -190,14 +123,12 @@
             border-radius: 12px;
             cursor: pointer;
         }
-
         .signature-area {
             background: var(--tg-theme-bg-color);
             border-radius: 12px;
             padding: 12px;
             text-align: center;
         }
-
         canvas {
             display: block;
             width: 100%;
@@ -208,12 +139,10 @@
             touch-action: none;
             margin-bottom: 10px;
         }
-
         .signature-buttons {
             display: flex;
             gap: 8px;
         }
-
         .signature-buttons button {
             flex: 1;
             padding: 8px;
@@ -221,7 +150,6 @@
             border-radius: 8px;
             cursor: pointer;
         }
-
         .submit-btn {
             width: 100%;
             padding: 16px;
@@ -234,17 +162,12 @@
             cursor: pointer;
             margin-top: 20px;
         }
-
-        .submit-btn:disabled {
-            opacity: 0.6;
-        }
-
+        .submit-btn:disabled { opacity: 0.6; }
         .status {
             position: fixed;
             bottom: 20px;
             left: 20px;
             right: 20px;
-            background: var(--tg-theme-bg-color);
             padding: 12px;
             border-radius: 12px;
             text-align: center;
@@ -252,20 +175,14 @@
             z-index: 100;
             display: none;
         }
-
-        .status.show {
-            display: block;
-            animation: slideUp 0.3s ease;
-        }
-
+        .status.show { display: block; animation: slideUp 0.3s ease; }
         @keyframes slideUp {
             from { transform: translateY(100px); opacity: 0; }
             to { transform: translateY(0); opacity: 1; }
         }
-
         .status-success { background: #28a745; color: white; }
         .status-error { background: #dc3545; color: white; }
-
+        .status-info { background: #17a2b8; color: white; }
         .spinner {
             display: inline-block;
             width: 20px;
@@ -276,10 +193,7 @@
             animation: spin 0.8s linear infinite;
             margin-right: 8px;
         }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
+        @keyframes spin { to { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
@@ -289,7 +203,6 @@
             <p>Заполните форму для оформления документов</p>
         </div>
 
-        <!-- Данные заказчика -->
         <div class="section">
             <div class="section-title">👤 Данные заказчика</div>
             <div class="form-group">
@@ -322,7 +235,6 @@
             </div>
         </div>
 
-        <!-- Данные получателя -->
         <div class="section">
             <div class="section-title">📍 Данные получателя</div>
             <div class="form-group">
@@ -351,7 +263,6 @@
             </div>
         </div>
 
-        <!-- Данные отправителя -->
         <div class="section">
             <div class="section-title">🏢 Данные отправителя</div>
             <div class="form-group">
@@ -372,7 +283,6 @@
             </div>
         </div>
 
-        <!-- Данные груза -->
         <div class="section">
             <div class="section-title">📦 Данные груза</div>
             <div class="form-group">
@@ -389,7 +299,6 @@
             </div>
         </div>
 
-        <!-- Товары -->
         <div class="section">
             <div class="section-title">🛒 Товары</div>
             <div class="items-header">
@@ -403,7 +312,6 @@
             </div>
         </div>
 
-        <!-- Подпись -->
         <div class="section">
             <div class="section-title">✍️ Электронная подпись</div>
             <div class="signature-area">
@@ -450,7 +358,9 @@
         const tg = window.Telegram.WebApp;
         tg.ready();
         tg.expand();
-
+        
+        console.log("WebApp загружен");
+        
         let items = [];
         let editingIndex = -1;
 
@@ -605,7 +515,7 @@
         }
 
         function collectFormData() {
-            return {
+            const formData = {
                 name: document.getElementById('name').value,
                 order_date: document.getElementById('order_date').value.split('-').reverse().join('.'),
                 passport_series: document.getElementById('passport_series').value.toUpperCase(),
@@ -629,6 +539,9 @@
                 items: items,
                 signature: canvas.toDataURL('image/jpeg', 0.7)
             };
+            
+            console.log("Собранные данные:", formData);
+            return formData;
         }
 
         function showStatus(msg, type) {
@@ -639,17 +552,33 @@
         }
 
         function submitForm() {
-            if (!validateForm()) return;
+            console.log("submitForm вызвана");
+            
+            if (!validateForm()) {
+                console.log("Валидация не пройдена");
+                return;
+            }
             
             const btn = document.querySelector('.submit-btn');
             btn.disabled = true;
             btn.innerHTML = '<span class="spinner"></span> Отправка...';
             
             const formData = collectFormData();
-            tg.sendData(JSON.stringify(formData));
+            const jsonData = JSON.stringify(formData);
             
-            showStatus('✅ Отправлено!', 'success');
-            setTimeout(() => tg.close(), 1500);
+            console.log("Отправка данных в бот:", jsonData.substring(0, 200) + "...");
+            
+            try {
+                tg.sendData(jsonData);
+                console.log("sendData выполнен успешно");
+                showStatus('✅ Отправлено! Закрываю окно...', 'success');
+                setTimeout(() => tg.close(), 1500);
+            } catch (error) {
+                console.error("Ошибка при отправке:", error);
+                showStatus('❌ Ошибка: ' + error.message, 'error');
+                btn.disabled = false;
+                btn.innerHTML = '📨 Отправить';
+            }
         }
 
         function escapeHtml(str) {
@@ -664,6 +593,8 @@
         document.getElementById('itemModal').addEventListener('click', function(e) {
             if (e.target === this) closeItemModal();
         });
+        
+        console.log("WebApp инициализирован, tg.sendData доступен:", typeof tg.sendData);
     </script>
 </body>
 </html>

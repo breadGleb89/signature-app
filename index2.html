@@ -24,44 +24,55 @@
         }
         .header h1 { font-size: 24px; margin-bottom: 8px; }
         .section {
-            background: var(--tg-theme-secondary-bg-color);
+            background: white;
             border-radius: 16px;
             padding: 16px;
             margin-bottom: 16px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
         }
         .section-title {
             font-size: 18px;
             font-weight: 600;
             margin-bottom: 16px;
-            color: var(--tg-theme-text-color);
+            color: #333;
+            border-bottom: 2px solid #6c5ce7;
+            padding-bottom: 8px;
         }
-        .form-group { margin-bottom: 16px; }
+        .form-group { margin-bottom: 20px; }
         .form-group label {
             display: block;
             font-size: 14px;
             font-weight: 500;
             margin-bottom: 6px;
-            color: var(--tg-theme-hint-color);
+            color: #555;
+            transition: color 0.2s ease;
         }
-        .form-group input, .form-group textarea, .form-group select {
+        .form-group:focus-within label {
+            color: #6c5ce7;
+            font-weight: 600;
+        }
+        .form-group input, 
+        .form-group textarea, 
+        .form-group select {
             width: 100%;
-            padding: 12px;
-            border: 1px solid rgba(0, 0, 0, 0.1);
+            padding: 14px 12px;
+            border: 1.5px solid #ddd;
             border-radius: 12px;
             font-size: 16px;
             background: white;
             color: #000;
-        }
-        .form-group select {
-            cursor: pointer;
+            transition: all 0.2s ease;
+            -webkit-appearance: none;
             appearance: none;
-            background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'></polyline></svg>");
-            background-repeat: no-repeat;
-            background-position: right 12px center;
         }
-        .form-group input:focus, .form-group textarea:focus, .form-group select:focus {
+        .form-group input:focus, 
+        .form-group textarea:focus, 
+        .form-group select:focus {
             outline: none;
             border-color: #6c5ce7;
+            border-width: 2px;
+            box-shadow: 0 0 0 3px rgba(108, 92, 231, 0.2);
+            background-color: #fff;
         }
         .error-field {
             border-color: #dc3545 !important;
@@ -74,23 +85,30 @@
             margin-bottom: 12px;
         }
         .add-item-btn {
-            padding: 8px 16px;
-            background: var(--tg-theme-button-color);
-            color: var(--tg-theme-button-text-color);
+            padding: 10px 20px;
+            background: #6c5ce7;
+            color: white;
             border: none;
-            border-radius: 20px;
+            border-radius: 25px;
             cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
         }
-        .items-list { max-height: 300px; overflow-y: auto; }
-        .item-card {
+        .items-list { 
+            max-height: 300px; 
+            overflow-y: auto; 
             background: white;
+            border-radius: 12px;
+        }
+        .item-card {
+            background: #f8f9fa;
             border-radius: 12px;
             padding: 12px;
             margin-bottom: 8px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            border: 1px solid #ddd;
+            border: 1px solid #e9ecef;
         }
         .item-name { font-weight: 500; color: #000; }
         .item-details { font-size: 12px; color: #666; }
@@ -139,7 +157,7 @@
             cursor: pointer;
         }
         .signature-area {
-            background: var(--tg-theme-bg-color);
+            background: white;
             border-radius: 12px;
             padding: 12px;
             text-align: center;
@@ -153,6 +171,7 @@
             cursor: crosshair;
             touch-action: none;
             margin-bottom: 10px;
+            border: 1px solid #ddd;
         }
         .signature-buttons {
             display: flex;
@@ -164,6 +183,8 @@
             border: none;
             border-radius: 8px;
             cursor: pointer;
+            background: #6c5ce7;
+            color: white;
         }
         .submit-btn {
             width: 100%;
@@ -213,10 +234,16 @@
             margin-right: 8px;
             vertical-align: middle;
         }
-        .country-option {
-            display: flex;
-            align-items: center;
-            gap: 8px;
+        select {
+            cursor: pointer;
+            background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'></polyline></svg>");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+        }
+        .empty-items {
+            text-align: center;
+            padding: 20px;
+            color: #999;
         }
     </style>
 </head>
@@ -278,12 +305,15 @@
 
         <div class="section">
             <div class="section-title">🛒 Товары</div>
-            <div class="items-header"><span>Список товаров</span><button class="add-item-btn" onclick="showItemModal()">➕ Добавить</button></div>
-            <div id="itemsList" class="items-list"><div style="text-align: center; padding: 20px;">Нет товаров</div></div>
+            <div class="items-header">
+                <span style="font-weight: 500;">Список товаров</span>
+                <button class="add-item-btn" onclick="showItemModal()">➕ Добавить товар</button>
+            </div>
+            <div id="itemsList" class="items-list"><div class="empty-items">Нет добавленных товаров</div></div>
         </div>
 
         <div class="section">
-            <div class="section-title">✍️ Подпись</div>
+            <div class="section-title">✍️ Электронная подпись</div>
             <div class="signature-area">
                 <canvas id="sigCanvas" width="350" height="150"></canvas>
                 <div class="signature-buttons"><button onclick="clearCanvas()">🗑 Очистить</button></div>
@@ -296,11 +326,11 @@
     <div id="itemModal" class="modal">
         <div class="modal-content">
             <div class="section-title" id="modalTitle">Добавить товар</div>
-            <div class="form-group"><label>Наименование *</label><input type="text" id="item_name" style="background:white;color:#000;"></div>
-            <div class="form-group"><label>Единица измерения *</label><input type="text" id="item_unit" placeholder="шт / кг" style="background:white;color:#000;"></div>
-            <div class="form-group"><label>Количество *</label><input type="number" id="item_qty" step="0.01" style="background:white;color:#000;"></div>
-            <div class="form-group"><label>Цена *</label><input type="number" id="item_price" step="0.01" style="background:white;color:#000;"></div>
-            <div class="modal-buttons"><button onclick="closeItemModal()">Отмена</button><button onclick="saveItem()">Сохранить</button></div>
+            <div class="form-group"><label>Наименование *</label><input type="text" id="item_name" placeholder="Куртка женская арт.123"></div>
+            <div class="form-group"><label>Единица измерения *</label><input type="text" id="item_unit" placeholder="шт / кг"></div>
+            <div class="form-group"><label>Количество *</label><input type="number" id="item_qty" step="0.01" placeholder="5"></div>
+            <div class="form-group"><label>Цена *</label><input type="number" id="item_price" step="0.01" placeholder="120.50"></div>
+            <div class="modal-buttons"><button onclick="closeItemModal()" style="background:#6c757d;color:white;">Отмена</button><button onclick="saveItem()" style="background:#6c5ce7;color:white;">Сохранить</button></div>
         </div>
     </div>
 
@@ -316,11 +346,9 @@
         let items = [];
         let editingIndex = -1;
 
-        // Установка дат
         document.getElementById('order_date').valueAsDate = new Date();
         document.getElementById('passport_date').valueAsDate = new Date();
 
-        // Подпись
         const canvas = document.getElementById('sigCanvas');
         const ctx = canvas.getContext('2d');
         let drawing = false;
@@ -383,13 +411,9 @@
 
         function validateFullName(name, fieldName) {
             const trimmed = name.trim();
-            if (!trimmed) {
-                return { valid: false, message: `Заполните поле "${fieldName}"` };
-            }
+            if (!trimmed) return { valid: false, message: `Заполните поле "${fieldName}"` };
             const words = trimmed.split(/\s+/);
-            if (words.length < 2) {
-                return { valid: false, message: `В поле "${fieldName}" введите минимум 2 слова (Фамилию и Имя)` };
-            }
+            if (words.length < 2) return { valid: false, message: `В поле "${fieldName}" введите минимум 2 слова (Фамилию и Имя)` };
             return { valid: true, value: capitalizeWords(trimmed) };
         }
 
@@ -400,8 +424,7 @@
         }
 
         function removeErrorStyles() {
-            const inputs = document.querySelectorAll('input, textarea, select');
-            inputs.forEach(input => input.classList.remove('error-field'));
+            document.querySelectorAll('input, textarea, select').forEach(el => el.classList.remove('error-field'));
         }
 
         function markErrorField(fieldId) {
@@ -415,7 +438,6 @@
             showStatus(message, 'error');
         }
 
-        // Автоматическое форматирование полей при потере фокуса
         document.getElementById('name').addEventListener('blur', function() {
             if (this.value.trim()) this.value = capitalizeWords(this.value.trim());
         });
@@ -434,8 +456,19 @@
 
         function renderItems() {
             const container = document.getElementById('itemsList');
-            if (items.length === 0) { container.innerHTML = '<div style="text-align: center; padding: 20px;">Нет товаров</div>'; return; }
-            container.innerHTML = items.map((item, idx) => `<div class="item-card"><div><div class="item-name">${escapeHtml(item.name)}</div><div class="item-details">${item.unit} | ${item.qty} шт | ${item.price} ₽</div></div><button class="delete-item-btn" onclick="deleteItem(${idx})">🗑</button></div>`).join('');
+            if (items.length === 0) {
+                container.innerHTML = '<div class="empty-items">Нет добавленных товаров</div>';
+                return;
+            }
+            container.innerHTML = items.map((item, idx) => `
+                <div class="item-card">
+                    <div>
+                        <div class="item-name">${escapeHtml(item.name)}</div>
+                        <div class="item-details">${item.unit} | ${item.qty} шт | ${item.price} ₽</div>
+                    </div>
+                    <button class="delete-item-btn" onclick="deleteItem(${idx})">🗑 Удалить</button>
+                </div>
+            `).join('');
         }
 
         function showItemModal(index = -1) {

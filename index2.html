@@ -52,6 +52,14 @@
             background: white;
             color: #000;
         }
+        .form-group input:focus, .form-group textarea:focus {
+            outline: none;
+            border-color: #6c5ce7;
+        }
+        .error-field {
+            border-color: #dc3545 !important;
+            background-color: #fff0f0 !important;
+        }
         .items-header {
             display: flex;
             justify-content: space-between;
@@ -173,6 +181,7 @@
             text-align: center;
             font-size: 14px;
             display: none;
+            z-index: 1000;
         }
         .status.show { display: block; animation: slideUp 0.3s ease; }
         .status-success { background: #28a745; color: white; }
@@ -198,7 +207,7 @@
     <div class="container">
         <div class="header">
             <h1>📦 Заказ-поручение</h1>
-            <p>Заполните форму</p>
+            <p>Заполните все поля формы</p>
         </div>
 
         <div class="section">
@@ -278,9 +287,11 @@
         let items = [];
         let editingIndex = -1;
 
+        // Установка дат
         document.getElementById('order_date').valueAsDate = new Date();
         document.getElementById('passport_date').valueAsDate = new Date();
 
+        // Подпись
         const canvas = document.getElementById('sigCanvas');
         const ctx = canvas.getContext('2d');
         let drawing = false;
@@ -337,14 +348,26 @@
             return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
         }
 
-        function capitalizeWords(str) {
-            return str.split(' ').map(word => capitalizeFirst(word)).join(' ');
-        }
-
         function validatePhone(phone) {
             const cleaned = phone.replace(/[^\d+]/g, '');
             if (cleaned.length < 6 || cleaned.length > 13) return false;
             return true;
+        }
+
+        function removeErrorStyles() {
+            const inputs = document.querySelectorAll('input, textarea');
+            inputs.forEach(input => input.classList.remove('error-field'));
+        }
+
+        function markErrorField(fieldId) {
+            const field = document.getElementById(fieldId);
+            if (field) field.classList.add('error-field');
+        }
+
+        function showError(message, fieldId = null) {
+            removeErrorStyles();
+            if (fieldId) markErrorField(fieldId);
+            showStatus(message, 'error');
         }
 
         function renderItems() {
@@ -381,10 +404,12 @@
             const unit = document.getElementById('item_unit').value.trim();
             const qty = document.getElementById('item_qty').value;
             const price = document.getElementById('item_price').value;
+            
             if (!name) { showStatus('Заполните наименование товара', 'error'); return; }
             if (!unit) { showStatus('Заполните единицу измерения', 'error'); return; }
             if (!qty) { showStatus('Заполните количество', 'error'); return; }
             if (!price) { showStatus('Заполните цену', 'error'); return; }
+            
             const item = { name, unit, qty, price };
             if (editingIndex >= 0) items[editingIndex] = item;
             else items.push(item);
@@ -394,45 +419,95 @@
         }
 
         function validateForm() {
+            removeErrorStyles();
+            
+            // Проверка ФИО заказчика
             const name = document.getElementById('name').value.trim();
-            if (!name) { showStatus('Заполните поле "ФИО заказчика"', 'error'); return false; }
+            if (!name) { showError('Заполните поле "ФИО заказчика"', 'name'); return false; }
             
-            const customerPhone = document.getElementById('customer_phone').value.trim();
-            if (!customerPhone) { showStatus('Заполните поле "Телефон заказчика"', 'error'); return false; }
-            if (!validatePhone(customerPhone)) { showStatus('Телефон заказчика должен содержать 6-13 цифр (можно +)', 'error'); return false; }
-            
+            // Проверка даты заказа
             const order_date = document.getElementById('order_date').value;
-            if (!order_date) { showStatus('Заполните поле "Дата заказа"', 'error'); return false; }
+            if (!order_date) { showError('Заполните поле "Дата заказа"', 'order_date'); return false; }
             
-            const phone = document.getElementById('phone').value.trim();
-            if (!phone) { showStatus('Заполните поле "Телефон получателя"', 'error'); return false; }
-            if (!validatePhone(phone)) { showStatus('Телефон получателя должен содержать 6-13 цифр (можно +)', 'error'); return false; }
+            // Проверка телефона заказчика
+            const customerPhone = document.getElementById('customer_phone').value.trim();
+            if (!customerPhone) { showError('Заполните поле "Телефон заказчика"', 'customer_phone'); return false; }
+            if (!validatePhone(customerPhone)) { showError('Телефон заказчика должен содержать 6-13 цифр (можно +)', 'customer_phone'); return false; }
+            
+            // Проверка серии паспорта
+            const passport_series = document.getElementById('passport_series').value.trim();
+            if (!passport_series) { showError('Заполните поле "Серия паспорта"', 'passport_series'); return false; }
+            
+            // Проверка номера паспорта
+            const passport_number = document.getElementById('passport_number').value.trim();
+            if (!passport_number) { showError('Заполните поле "Номер паспорта"', 'passport_number'); return false; }
+            
+            // Проверка "Кем выдан"
+            const issued_by = document.getElementById('issued_by').value.trim();
+            if (!issued_by) { showError('Заполните поле "Кем выдан"', 'issued_by'); return false; }
+            
+            // Проверка даты выдачи
+            const passport_date = document.getElementById('passport_date').value;
+            if (!passport_date) { showError('Заполните поле "Дата выдачи паспорта"', 'passport_date'); return false; }
+            
+            // Проверка адреса прописки
+            const registration = document.getElementById('registration').value.trim();
+            if (!registration) { showError('Заполните поле "Адрес прописки"', 'registration'); return false; }
+            
+            // Данные получателя
+            const contry = document.getElementById('contry').value.trim();
+            if (!contry) { showError('Заполните поле "Страна доставки"', 'contry'); return false; }
             
             const city = document.getElementById('city').value.trim();
-            if (!city) { showStatus('Заполните поле "Город доставки"', 'error'); return false; }
+            if (!city) { showError('Заполните поле "Город доставки"', 'city'); return false; }
             
             const street = document.getElementById('street').value.trim();
-            if (!street) { showStatus('Заполните поле "Улица доставки"', 'error'); return false; }
+            if (!street) { showError('Заполните поле "Улица доставки"', 'street'); return false; }
             
-            const contry = document.getElementById('contry').value.trim();
-            if (!contry) { showStatus('Заполните поле "Страна доставки"', 'error'); return false; }
+            const house = document.getElementById('house').value.trim();
+            if (!house) { showError('Заполните поле "Дом и квартира"', 'house'); return false; }
             
+            const phone = document.getElementById('phone').value.trim();
+            if (!phone) { showError('Заполните поле "Телефон получателя"', 'phone'); return false; }
+            if (!validatePhone(phone)) { showError('Телефон получателя должен содержать 6-13 цифр (можно +)', 'phone'); return false; }
+            
+            const polname = document.getElementById('polname').value.trim();
+            if (!polname) { showError('Заполните поле "Имя получателя"', 'polname'); return false; }
+            
+            // Данные отправителя
             const sender = document.getElementById('sender').value.trim();
-            if (!sender) { showStatus('Заполните поле "Имя отправителя"', 'error'); return false; }
+            if (!sender) { showError('Заполните поле "Имя отправителя"', 'sender'); return false; }
             
-            if (items.length === 0) { showStatus('Добавьте хотя бы один товар', 'error'); return false; }
-            if (isCanvasEmpty()) { showStatus('Поставьте электронную подпись', 'error'); return false; }
+            const sender_contry = document.getElementById('sender_contry').value.trim();
+            if (!sender_contry) { showError('Заполните поле "Страна отправления"', 'sender_contry'); return false; }
+            
+            const sender_address = document.getElementById('sender_address').value.trim();
+            if (!sender_address) { showError('Заполните поле "Адрес отправителя"', 'sender_address'); return false; }
+            
+            const sender_phone = document.getElementById('sender_phone').value.trim();
+            if (!sender_phone) { showError('Заполните поле "Телефон отправителя"', 'sender_phone'); return false; }
+            if (!validatePhone(sender_phone)) { showError('Телефон отправителя должен содержать 6-13 цифр (можно +)', 'sender_phone'); return false; }
+            
+            // Данные груза
+            const type = document.getElementById('type').value.trim();
+            if (!type) { showError('Заполните поле "Тип груза"', 'type'); return false; }
+            
+            const weight = document.getElementById('weight').value;
+            if (!weight) { showError('Заполните поле "Масса груза"', 'weight'); return false; }
+            
+            const places = document.getElementById('places').value;
+            if (!places) { showError('Заполните поле "Количество мест"', 'places'); return false; }
+            
+            // Проверка товаров
+            if (items.length === 0) { showError('Добавьте хотя бы один товар'); return false; }
+            
+            // Проверка подписи
+            if (isCanvasEmpty()) { showError('Поставьте электронную подпись', 'sigCanvas'); return false; }
+            
             return true;
         }
 
         function collectFormData(signatureUrl) {
-            let city = document.getElementById('city').value.trim();
-            let street = document.getElementById('street').value.trim();
-            let contry = document.getElementById('contry').value.trim();
-            let polname = document.getElementById('polname').value.trim();
-            let sender = document.getElementById('sender').value.trim();
-            let sender_contry = document.getElementById('sender_contry').value.trim();
-            
             return {
                 name: document.getElementById('name').value.trim(),
                 order_date: document.getElementById('order_date').value.split('-').reverse().join('.'),
@@ -442,14 +517,14 @@
                 issued_by: document.getElementById('issued_by').value,
                 passport_date: document.getElementById('passport_date').value.split('-').reverse().join('.'),
                 registration: document.getElementById('registration').value,
-                contry: capitalizeWords(contry),
-                city: capitalizeWords(city),
-                street: capitalizeWords(street),
+                contry: capitalizeFirst(document.getElementById('contry').value.trim()),
+                city: capitalizeFirst(document.getElementById('city').value.trim()),
+                street: capitalizeFirst(document.getElementById('street').value.trim()),
                 house: document.getElementById('house').value,
                 phone: document.getElementById('phone').value.trim(),
-                polname: capitalizeWords(polname),
-                sender: capitalizeWords(sender),
-                sender_contry: capitalizeWords(sender_contry),
+                polname: capitalizeFirst(document.getElementById('polname').value.trim()),
+                sender: capitalizeFirst(document.getElementById('sender').value.trim()),
+                sender_contry: capitalizeFirst(document.getElementById('sender_contry').value.trim()),
                 sender_address: document.getElementById('sender_address').value,
                 sender_phone: document.getElementById('sender_phone').value.trim(),
                 type: document.getElementById('type').value,
@@ -477,7 +552,7 @@
             const div = document.getElementById('status');
             div.textContent = msg;
             div.className = `status status-${type} show`;
-            setTimeout(() => div.classList.remove('show'), 3000);
+            setTimeout(() => div.classList.remove('show'), 4000);
         }
 
         async function submitForm() {
@@ -497,7 +572,6 @@
                 }
                 
                 tg.sendData(jsonString);
-                
                 showStatus('✅ Отправлено! Бот создаст документы', 'success');
                 setTimeout(() => tg.close(), 2000);
                 

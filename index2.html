@@ -343,9 +343,27 @@
             return true;
         }
 
+        // Функция для форматирования ФИО (первая буква заглавная, остальные строчные)
         function capitalizeFirst(str) {
             if (!str) return str;
             return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+        }
+
+        function capitalizeWords(str) {
+            return str.split(' ').map(word => capitalizeFirst(word)).join(' ');
+        }
+
+        // Функция проверки ФИО (минимум 2 слова)
+        function validateFullName(name, fieldName) {
+            const trimmed = name.trim();
+            if (!trimmed) {
+                return { valid: false, message: `Заполните поле "${fieldName}"` };
+            }
+            const words = trimmed.split(/\s+/);
+            if (words.length < 2) {
+                return { valid: false, message: `В поле "${fieldName}" введите минимум 2 слова (Фамилию и Имя)` };
+            }
+            return { valid: true, value: capitalizeWords(trimmed) };
         }
 
         function validatePhone(phone) {
@@ -369,6 +387,43 @@
             if (fieldId) markErrorField(fieldId);
             showStatus(message, 'error');
         }
+
+        // Автоматическое форматирование полей при потере фокуса
+        document.getElementById('name').addEventListener('blur', function() {
+            if (this.value.trim()) {
+                this.value = capitalizeWords(this.value.trim());
+            }
+        });
+        document.getElementById('polname').addEventListener('blur', function() {
+            if (this.value.trim()) {
+                this.value = capitalizeWords(this.value.trim());
+            }
+        });
+        document.getElementById('sender').addEventListener('blur', function() {
+            if (this.value.trim()) {
+                this.value = capitalizeWords(this.value.trim());
+            }
+        });
+        document.getElementById('city').addEventListener('blur', function() {
+            if (this.value.trim()) {
+                this.value = capitalizeFirst(this.value.trim());
+            }
+        });
+        document.getElementById('street').addEventListener('blur', function() {
+            if (this.value.trim()) {
+                this.value = capitalizeFirst(this.value.trim());
+            }
+        });
+        document.getElementById('contry').addEventListener('blur', function() {
+            if (this.value.trim()) {
+                this.value = capitalizeFirst(this.value.trim());
+            }
+        });
+        document.getElementById('sender_contry').addEventListener('blur', function() {
+            if (this.value.trim()) {
+                this.value = capitalizeFirst(this.value.trim());
+            }
+        });
 
         function renderItems() {
             const container = document.getElementById('itemsList');
@@ -421,9 +476,11 @@
         function validateForm() {
             removeErrorStyles();
             
-            // Проверка ФИО заказчика
-            const name = document.getElementById('name').value.trim();
-            if (!name) { showError('Заполните поле "ФИО заказчика"', 'name'); return false; }
+            // Проверка ФИО заказчика (минимум 2 слова)
+            const nameInput = document.getElementById('name');
+            const nameValidation = validateFullName(nameInput.value, 'ФИО заказчика');
+            if (!nameValidation.valid) { showError(nameValidation.message, 'name'); return false; }
+            nameInput.value = nameValidation.value;
             
             // Проверка даты заказа
             const order_date = document.getElementById('order_date').value;
@@ -471,12 +528,17 @@
             if (!phone) { showError('Заполните поле "Телефон получателя"', 'phone'); return false; }
             if (!validatePhone(phone)) { showError('Телефон получателя должен содержать 6-13 цифр (можно +)', 'phone'); return false; }
             
-            const polname = document.getElementById('polname').value.trim();
-            if (!polname) { showError('Заполните поле "Имя получателя"', 'polname'); return false; }
+            // Проверка имени получателя (минимум 2 слова)
+            const polnameInput = document.getElementById('polname');
+            const polnameValidation = validateFullName(polnameInput.value, 'Имя получателя');
+            if (!polnameValidation.valid) { showError(polnameValidation.message, 'polname'); return false; }
+            polnameInput.value = polnameValidation.value;
             
-            // Данные отправителя
-            const sender = document.getElementById('sender').value.trim();
-            if (!sender) { showError('Заполните поле "Имя отправителя"', 'sender'); return false; }
+            // Проверка имени отправителя (минимум 2 слова)
+            const senderInput = document.getElementById('sender');
+            const senderValidation = validateFullName(senderInput.value, 'Имя отправителя');
+            if (!senderValidation.valid) { showError(senderValidation.message, 'sender'); return false; }
+            senderInput.value = senderValidation.value;
             
             const sender_contry = document.getElementById('sender_contry').value.trim();
             if (!sender_contry) { showError('Заполните поле "Страна отправления"', 'sender_contry'); return false; }
@@ -522,8 +584,8 @@
                 street: capitalizeFirst(document.getElementById('street').value.trim()),
                 house: document.getElementById('house').value,
                 phone: document.getElementById('phone').value.trim(),
-                polname: capitalizeFirst(document.getElementById('polname').value.trim()),
-                sender: capitalizeFirst(document.getElementById('sender').value.trim()),
+                polname: document.getElementById('polname').value.trim(),
+                sender: document.getElementById('sender').value.trim(),
                 sender_contry: capitalizeFirst(document.getElementById('sender_contry').value.trim()),
                 sender_address: document.getElementById('sender_address').value,
                 sender_phone: document.getElementById('sender_phone').value.trim(),

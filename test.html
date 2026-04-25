@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+</head>
+<body>
+    <button onclick="send()">Отправить тест</button>
+    <script>
+        const tg = window.Telegram.WebApp;
+        tg.ready();
+        
+        function send() {
+            tg.sendData("Тестовое сообщение из WebApp");
+            tg.close();
+        }
+    </script>
+</body>
+</html>

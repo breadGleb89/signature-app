@@ -43,7 +43,7 @@
             margin-bottom: 6px;
             color: var(--tg-theme-hint-color);
         }
-        .form-group input, .form-group textarea {
+        .form-group input, .form-group textarea, .form-group select {
             width: 100%;
             padding: 12px;
             border: 1px solid rgba(0, 0, 0, 0.1);
@@ -52,7 +52,14 @@
             background: white;
             color: #000;
         }
-        .form-group input:focus, .form-group textarea:focus {
+        .form-group select {
+            cursor: pointer;
+            appearance: none;
+            background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'></polyline></svg>");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+        }
+        .form-group input:focus, .form-group textarea:focus, .form-group select:focus {
             outline: none;
             border-color: #6c5ce7;
         }
@@ -201,6 +208,16 @@
             from { transform: translateY(100px); opacity: 0; }
             to { transform: translateY(0); opacity: 1; }
         }
+        .flag {
+            font-size: 20px;
+            margin-right: 8px;
+            vertical-align: middle;
+        }
+        .country-option {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
     </style>
 </head>
 <body>
@@ -224,7 +241,13 @@
 
         <div class="section">
             <div class="section-title">📍 Данные получателя</div>
-            <div class="form-group"><label>Страна доставки *</label><input type="text" id="contry" placeholder="Республика Беларусь"></div>
+            <div class="form-group">
+                <label>Страна доставки *</label>
+                <select id="contry">
+                    <option value="Республика Беларусь">🇧🇾 Республика Беларусь</option>
+                    <option value="Российская Федерация">🇷🇺 Российская Федерация</option>
+                </select>
+            </div>
             <div class="form-group"><label>Город доставки *</label><input type="text" id="city" placeholder="Минск"></div>
             <div class="form-group"><label>Улица доставки *</label><input type="text" id="street" placeholder="Ленина"></div>
             <div class="form-group"><label>Дом и квартира *</label><input type="text" id="house" placeholder="д.1, кв.6"></div>
@@ -235,7 +258,13 @@
         <div class="section">
             <div class="section-title">🏢 Данные отправителя</div>
             <div class="form-group"><label>Имя отправителя *</label><input type="text" id="sender" placeholder="ИП Усманов А.В."></div>
-            <div class="form-group"><label>Страна отправления *</label><input type="text" id="sender_contry" placeholder="Республика Беларусь"></div>
+            <div class="form-group">
+                <label>Страна отправления *</label>
+                <select id="sender_contry">
+                    <option value="Республика Беларусь">🇧🇾 Республика Беларусь</option>
+                    <option value="Российская Федерация">🇷🇺 Российская Федерация</option>
+                </select>
+            </div>
             <div class="form-group"><label>Адрес отправителя *</label><textarea id="sender_address" placeholder="г.Москва, ул.Рябиновая, д.6"></textarea></div>
             <div class="form-group"><label>Телефон отправителя *</label><input type="tel" id="sender_phone" placeholder="+79051745953" maxlength="13"></div>
         </div>
@@ -343,7 +372,6 @@
             return true;
         }
 
-        // Функция для форматирования ФИО (первая буква заглавная, остальные строчные)
         function capitalizeFirst(str) {
             if (!str) return str;
             return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
@@ -353,7 +381,6 @@
             return str.split(' ').map(word => capitalizeFirst(word)).join(' ');
         }
 
-        // Функция проверки ФИО (минимум 2 слова)
         function validateFullName(name, fieldName) {
             const trimmed = name.trim();
             if (!trimmed) {
@@ -373,7 +400,7 @@
         }
 
         function removeErrorStyles() {
-            const inputs = document.querySelectorAll('input, textarea');
+            const inputs = document.querySelectorAll('input, textarea, select');
             inputs.forEach(input => input.classList.remove('error-field'));
         }
 
@@ -390,39 +417,19 @@
 
         // Автоматическое форматирование полей при потере фокуса
         document.getElementById('name').addEventListener('blur', function() {
-            if (this.value.trim()) {
-                this.value = capitalizeWords(this.value.trim());
-            }
+            if (this.value.trim()) this.value = capitalizeWords(this.value.trim());
         });
         document.getElementById('polname').addEventListener('blur', function() {
-            if (this.value.trim()) {
-                this.value = capitalizeWords(this.value.trim());
-            }
+            if (this.value.trim()) this.value = capitalizeWords(this.value.trim());
         });
         document.getElementById('sender').addEventListener('blur', function() {
-            if (this.value.trim()) {
-                this.value = capitalizeWords(this.value.trim());
-            }
+            if (this.value.trim()) this.value = capitalizeWords(this.value.trim());
         });
         document.getElementById('city').addEventListener('blur', function() {
-            if (this.value.trim()) {
-                this.value = capitalizeFirst(this.value.trim());
-            }
+            if (this.value.trim()) this.value = capitalizeFirst(this.value.trim());
         });
         document.getElementById('street').addEventListener('blur', function() {
-            if (this.value.trim()) {
-                this.value = capitalizeFirst(this.value.trim());
-            }
-        });
-        document.getElementById('contry').addEventListener('blur', function() {
-            if (this.value.trim()) {
-                this.value = capitalizeFirst(this.value.trim());
-            }
-        });
-        document.getElementById('sender_contry').addEventListener('blur', function() {
-            if (this.value.trim()) {
-                this.value = capitalizeFirst(this.value.trim());
-            }
+            if (this.value.trim()) this.value = capitalizeFirst(this.value.trim());
         });
 
         function renderItems() {
@@ -476,43 +483,34 @@
         function validateForm() {
             removeErrorStyles();
             
-            // Проверка ФИО заказчика (минимум 2 слова)
             const nameInput = document.getElementById('name');
             const nameValidation = validateFullName(nameInput.value, 'ФИО заказчика');
             if (!nameValidation.valid) { showError(nameValidation.message, 'name'); return false; }
             nameInput.value = nameValidation.value;
             
-            // Проверка даты заказа
             const order_date = document.getElementById('order_date').value;
             if (!order_date) { showError('Заполните поле "Дата заказа"', 'order_date'); return false; }
             
-            // Проверка телефона заказчика
             const customerPhone = document.getElementById('customer_phone').value.trim();
             if (!customerPhone) { showError('Заполните поле "Телефон заказчика"', 'customer_phone'); return false; }
             if (!validatePhone(customerPhone)) { showError('Телефон заказчика должен содержать 6-13 цифр (можно +)', 'customer_phone'); return false; }
             
-            // Проверка серии паспорта
             const passport_series = document.getElementById('passport_series').value.trim();
             if (!passport_series) { showError('Заполните поле "Серия паспорта"', 'passport_series'); return false; }
             
-            // Проверка номера паспорта
             const passport_number = document.getElementById('passport_number').value.trim();
             if (!passport_number) { showError('Заполните поле "Номер паспорта"', 'passport_number'); return false; }
             
-            // Проверка "Кем выдан"
             const issued_by = document.getElementById('issued_by').value.trim();
             if (!issued_by) { showError('Заполните поле "Кем выдан"', 'issued_by'); return false; }
             
-            // Проверка даты выдачи
             const passport_date = document.getElementById('passport_date').value;
             if (!passport_date) { showError('Заполните поле "Дата выдачи паспорта"', 'passport_date'); return false; }
             
-            // Проверка адреса прописки
             const registration = document.getElementById('registration').value.trim();
             if (!registration) { showError('Заполните поле "Адрес прописки"', 'registration'); return false; }
             
-            // Данные получателя
-            const contry = document.getElementById('contry').value.trim();
+            const contry = document.getElementById('contry').value;
             if (!contry) { showError('Заполните поле "Страна доставки"', 'contry'); return false; }
             
             const city = document.getElementById('city').value.trim();
@@ -528,19 +526,17 @@
             if (!phone) { showError('Заполните поле "Телефон получателя"', 'phone'); return false; }
             if (!validatePhone(phone)) { showError('Телефон получателя должен содержать 6-13 цифр (можно +)', 'phone'); return false; }
             
-            // Проверка имени получателя (минимум 2 слова)
             const polnameInput = document.getElementById('polname');
             const polnameValidation = validateFullName(polnameInput.value, 'Имя получателя');
             if (!polnameValidation.valid) { showError(polnameValidation.message, 'polname'); return false; }
             polnameInput.value = polnameValidation.value;
             
-            // Проверка имени отправителя (минимум 2 слова)
             const senderInput = document.getElementById('sender');
             const senderValidation = validateFullName(senderInput.value, 'Имя отправителя');
             if (!senderValidation.valid) { showError(senderValidation.message, 'sender'); return false; }
             senderInput.value = senderValidation.value;
             
-            const sender_contry = document.getElementById('sender_contry').value.trim();
+            const sender_contry = document.getElementById('sender_contry').value;
             if (!sender_contry) { showError('Заполните поле "Страна отправления"', 'sender_contry'); return false; }
             
             const sender_address = document.getElementById('sender_address').value.trim();
@@ -550,7 +546,6 @@
             if (!sender_phone) { showError('Заполните поле "Телефон отправителя"', 'sender_phone'); return false; }
             if (!validatePhone(sender_phone)) { showError('Телефон отправителя должен содержать 6-13 цифр (можно +)', 'sender_phone'); return false; }
             
-            // Данные груза
             const type = document.getElementById('type').value.trim();
             if (!type) { showError('Заполните поле "Тип груза"', 'type'); return false; }
             
@@ -560,10 +555,7 @@
             const places = document.getElementById('places').value;
             if (!places) { showError('Заполните поле "Количество мест"', 'places'); return false; }
             
-            // Проверка товаров
             if (items.length === 0) { showError('Добавьте хотя бы один товар'); return false; }
-            
-            // Проверка подписи
             if (isCanvasEmpty()) { showError('Поставьте электронную подпись', 'sigCanvas'); return false; }
             
             return true;
@@ -579,14 +571,14 @@
                 issued_by: document.getElementById('issued_by').value,
                 passport_date: document.getElementById('passport_date').value.split('-').reverse().join('.'),
                 registration: document.getElementById('registration').value,
-                contry: capitalizeFirst(document.getElementById('contry').value.trim()),
+                contry: document.getElementById('contry').value,
                 city: capitalizeFirst(document.getElementById('city').value.trim()),
                 street: capitalizeFirst(document.getElementById('street').value.trim()),
                 house: document.getElementById('house').value,
                 phone: document.getElementById('phone').value.trim(),
                 polname: document.getElementById('polname').value.trim(),
                 sender: document.getElementById('sender').value.trim(),
-                sender_contry: capitalizeFirst(document.getElementById('sender_contry').value.trim()),
+                sender_contry: document.getElementById('sender_contry').value,
                 sender_address: document.getElementById('sender_address').value,
                 sender_phone: document.getElementById('sender_phone').value.trim(),
                 type: document.getElementById('type').value,

@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>Оформление заказ-поручения</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: var(--tg-theme-bg-color);
+            font-family: system-ui, -apple-system, sans-serif;
+            padding: 16px;
+            padding-bottom: 80px;
+        }
+        .container { max-width: 600px; margin: 0 auto; }
+        .header {
+            text-align: center;
+            margin-bottom: 24px;
+            padding: 20px;
+            background: linear-gradient(135deg, #6c5ce7 0%, #a355f7 100%);
+            border-radius: 20px;
+            color: white;
+        }
+        .header h1 { font-size: 24px; margin-bottom: 8px; }
+        .section {
+            background: var(--tg-theme-secondary-bg-color);
+            border-radius: 16px;
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+        .section-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            color: var(--tg-theme-text-color);
+        }
+        .form-group { margin-bottom: 16px; }
+        .form-group label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 6px;
+            color: var(--tg-theme-hint-color);
+        }
+        .form-group input, .form-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid rgba(0, 0, 0, 0.1);
+            border-radius: 12px;
+            font-size: 16px;
+            background: var(--tg-theme-bg-color);
+            color: var(--tg-theme-text-color);
+        }
+        .items-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        .add-item-btn {
+            padding: 8px 16px;
+            background: var(--tg-theme-button-color);
+            color: var(--tg-theme-button-text-color);
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+        }
+        .items-list { max-height: 300px; overflow-y: auto; }
+        .item-card {
+            background: var(--tg-theme-bg-color);
+            border-radius: 12px;
+            padding: 12px;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .item-name { font-weight: 500; }
+        .item-details { font-size: 12px; color: var(--tg-theme-hint-color); }
+        .delete-item-btn {
+            padding: 6px 12px;
+            background: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-content {
+            background: var(--tg-theme-bg-color);
+            border-radius: 20px;
+            padding: 20px;
+            width: 90%;
+            max-width: 400px;
+        }
+        .modal-buttons {
+            display: flex;
+            gap: 12px;
+            margin-top: 20px;
+        }
+        .modal-buttons button {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+        }
+        .signature-area {
+            background: var(--tg-theme-bg-color);
+            border-radius: 12px;
+            padding: 12px;
+            text-align: center;
+        }
+        canvas {
+            display: block;
+            width: 100%;
+            height: auto;
+            background: white;
+            border-radius: 8px;
+            cursor: crosshair;
+            touch-action: none;
+            margin-bottom: 10px;
+        }
+        .signature-buttons {
+            display: flex;
+            gap: 8px;
+        }
+        .signature-buttons button {
+            flex: 1;
+            padding: 8px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+        .submit-btn {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+            border: none;
+            border-radius: 16px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+        .submit-btn:disabled { opacity: 0.6; }
+        .status {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            padding: 12px;
+            border-radius: 12px;
+            text-align: center;
+            font-size: 14px;
+            display: none;
+        }
+        .status.show { display: block; animation: slideUp 0.3s ease; }
+        .status-success { background: #28a745; color: white; }
+        .status-error { background: #dc3545; color: white; }
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 0.8s linear infinite;
+            margin-right: 8px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes slideUp {
+            from { transform: translateY(100px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📦 Заказ-поручение</h1>
+            <p>Заполните форму</p>
+        </div>
+
+        <div class="section">
+            <div class="section-title">👤 Данные заказчика</div>
+            <div class="form-group"><label>ФИО *</label><input type="text" id="name" placeholder="Иванов Иван Иванович"></div>
+            <div class="form-group"><label>Дата заказа *</label><input type="date" id="order_date"></div>
+            <div class="form-group"><label>Серия паспорта *</label><input type="text" id="passport_series" placeholder="AB" maxlength="2"></div>
+            <div class="form-group"><label>Номер паспорта *</label><input type="text" id="passport_number" placeholder="1234567" maxlength="7"></div>
+            <div class="form-group"><label>Кем выдан *</label><input type="text" id="issued_by" placeholder="Кобринским РОВД"></div>
+            <div class="form-group"><label>Дата выдачи *</label><input type="date" id="passport_date"></div>
+            <div class="form-group"><label>Адрес прописки *</label><textarea id="registration" placeholder="г.Брест, ул. Ленина, д.1, кв.20"></textarea></div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">📍 Данные получателя</div>
+            <div class="form-group"><label>Страна доставки *</label><input type="text" id="contry" placeholder="Республика Беларусь"></div>
+            <div class="form-group"><label>Город доставки *</label><input type="text" id="city" placeholder="Минск"></div>
+            <div class="form-group"><label>Улица доставки *</label><input type="text" id="street" placeholder="Ленина"></div>
+            <div class="form-group"><label>Дом и квартира *</label><input type="text" id="house" placeholder="д.1, кв.6"></div>
+            <div class="form-group"><label>Телефон получателя *</label><input type="tel" id="phone" placeholder="80291234567" maxlength="11"></div>
+            <div class="form-group"><label>Имя получателя *</label><input type="text" id="polname" placeholder="Иванов Иван Иванович"></div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">🏢 Данные отправителя</div>
+            <div class="form-group"><label>Имя отправителя *</label><input type="text" id="sender" placeholder="ИП Усманов А.В."></div>
+            <div class="form-group"><label>Страна отправления *</label><input type="text" id="sender_contry" placeholder="Республика Беларусь"></div>
+            <div class="form-group"><label>Адрес отправителя *</label><textarea id="sender_address" placeholder="г.Москва, ул.Рябиновая, д.6"></textarea></div>
+            <div class="form-group"><label>Телефон отправителя *</label><input type="tel" id="sender_phone" placeholder="+79051745953"></div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">📦 Данные груза</div>
+            <div class="form-group"><label>Тип груза *</label><input type="text" id="type" placeholder="коробка, мешок, сборный груз"></div>
+            <div class="form-group"><label>Масса груза (кг) *</label><input type="number" id="weight" placeholder="12.5" step="0.1"></div>
+            <div class="form-group"><label>Количество мест *</label><input type="number" id="places" placeholder="3"></div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">🛒 Товары</div>
+            <div class="items-header"><span>Список товаров</span><button class="add-item-btn" onclick="showItemModal()">➕ Добавить</button></div>
+            <div id="itemsList" class="items-list"><div style="text-align: center; padding: 20px;">Нет товаров</div></div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">✍️ Подпись</div>
+            <div class="signature-area">
+                <canvas id="sigCanvas" width="350" height="150"></canvas>
+                <div class="signature-buttons"><button onclick="clearCanvas()">🗑 Очистить</button></div>
+            </div>
+        </div>
+
+        <button class="submit-btn" onclick="submitForm()">📨 Отправить</button>
+    </div>
+
+    <div id="itemModal" class="modal">
+        <div class="modal-content">
+            <div class="section-title" id="modalTitle">Добавить товар</div>
+            <div class="form-group"><label>Наименование *</label><input type="text" id="item_name"></div>
+            <div class="form-group"><label>Единица измерения *</label><input type="text" id="item_unit" placeholder="шт / кг"></div>
+            <div class="form-group"><label>Количество *</label><input type="number" id="item_qty" step="0.01"></div>
+            <div class="form-group"><label>Цена *</label><input type="number" id="item_price" step="0.01"></div>
+            <div class="modal-buttons"><button onclick="closeItemModal()">Отмена</button><button onclick="saveItem()">Сохранить</button></div>
+        </div>
+    </div>
+
+    <div id="status" class="status"></div>
+
+    <script>
+        const tg = window.Telegram.WebApp;
+        tg.ready();
+        tg.expand();
+        
+        const SERVER_URL = "https://signature-server-87mz.onrender.com";
+        
+        let items = [];
+        let editingIndex = -1;
+
+        document.getElementById('order_date').valueAsDate = new Date();
+        document.getElementById('passport_date').valueAsDate = new Date();
+
+        const canvas = document.getElementById('sigCanvas');
+        const ctx = canvas.getContext('2d');
+        let drawing = false;
+        ctx.fillStyle = 'white';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.strokeStyle = 'black';
+        ctx.lineWidth = 2;
+        ctx.lineCap = 'round';
+
+        function getCoords(e) {
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            let x, y;
+            if (e.touches) {
+                x = (e.touches[0].clientX - rect.left) * scaleX;
+                y = (e.touches[0].clientY - rect.top) * scaleY;
+                e.preventDefault();
+            } else {
+                x = (e.clientX - rect.left) * scaleX;
+                y = (e.clientY - rect.top) * scaleY;
+            }
+            return { x: Math.min(Math.max(0, x), canvas.width), y: Math.min(Math.max(0, y), canvas.height) };
+        }
+
+        function start(e) { drawing = true; const p = getCoords(e); ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x, p.y); ctx.stroke(); e.preventDefault(); }
+        function draw(e) { if (!drawing) return; e.preventDefault(); const p = getCoords(e); ctx.lineTo(p.x, p.y); ctx.stroke(); ctx.beginPath(); ctx.moveTo(p.x, p.y); }
+        function stop(e) { drawing = false; ctx.beginPath(); e.preventDefault(); }
+
+        canvas.addEventListener('mousedown', start);
+        canvas.addEventListener('mousemove', draw);
+        canvas.addEventListener('mouseup', stop);
+        canvas.addEventListener('mouseleave', stop);
+        canvas.addEventListener('touchstart', start, { passive: false });
+        canvas.addEventListener('touchmove', draw, { passive: false });
+        canvas.addEventListener('touchend', stop);
+
+        function clearCanvas() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = 'white';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
+
+        function isCanvasEmpty() {
+            const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+            for (let i = 0; i < pixels.length; i += 4) {
+                if (pixels[i] < 250) return false;
+            }
+            return true;
+        }
+
+        function renderItems() {
+            const container = document.getElementById('itemsList');
+            if (items.length === 0) { container.innerHTML = '<div style="text-align: center; padding: 20px;">Нет товаров</div>'; return; }
+            container.innerHTML = items.map((item, idx) => `<div class="item-card"><div><div class="item-name">${escapeHtml(item.name)}</div><div class="item-details">${item.unit} | ${item.qty} шт | ${item.price} ₽</div></div><button class="delete-item-btn" onclick="deleteItem(${idx})">🗑</button></div>`).join('');
+        }
+
+        function showItemModal(index = -1) {
+            editingIndex = index;
+            const modal = document.getElementById('itemModal');
+            if (index >= 0) {
+                document.getElementById('modalTitle').textContent = 'Редактировать';
+                const item = items[index];
+                document.getElementById('item_name').value = item.name;
+                document.getElementById('item_unit').value = item.unit;
+                document.getElementById('item_qty').value = item.qty;
+                document.getElementById('item_price').value = item.price;
+            } else {
+                document.getElementById('modalTitle').textContent = 'Добавить';
+                document.getElementById('item_name').value = '';
+                document.getElementById('item_unit').value = '';
+                document.getElementById('item_qty').value = '';
+                document.getElementById('item_price').value = '';
+            }
+            modal.style.display = 'flex';
+        }
+
+        function closeItemModal() { document.getElementById('itemModal').style.display = 'none'; editingIndex = -1; }
+        function deleteItem(index) { items.splice(index, 1); renderItems(); }
+
+        function saveItem() {
+            const name = document.getElementById('item_name').value.trim();
+            const unit = document.getElementById('item_unit').value.trim();
+            const qty = document.getElementById('item_qty').value;
+            const price = document.getElementById('item_price').value;
+            if (!name || !unit || !qty || !price) return;
+            const item = { name, unit, qty, price };
+            if (editingIndex >= 0) items[editingIndex] = item;
+            else items.push(item);
+            renderItems();
+            closeItemModal();
+        }
+
+        function validateForm() {
+            const required = ['name', 'order_date', 'phone', 'city', 'street', 'contry', 'sender'];
+            for (const f of required) if (!document.getElementById(f).value.trim()) { showStatus(`Заполните: ${f}`, 'error'); return false; }
+            if (items.length === 0) { showStatus('Добавьте товары', 'error'); return false; }
+            if (isCanvasEmpty()) { showStatus('Поставьте подпись', 'error'); return false; }
+            return true;
+        }
+
+        function collectFormData(signatureUrl) {
+            return {
+                name: document.getElementById('name').value,
+                order_date: document.getElementById('order_date').value.split('-').reverse().join('.'),
+                passport_series: document.getElementById('passport_series').value.toUpperCase(),
+                passport_number: document.getElementById('passport_number').value,
+                issued_by: document.getElementById('issued_by').value,
+                passport_date: document.getElementById('passport_date').value.split('-').reverse().join('.'),
+                registration: document.getElementById('registration').value,
+                contry: document.getElementById('contry').value,
+                city: document.getElementById('city').value,
+                street: document.getElementById('street').value,
+                house: document.getElementById('house').value,
+                phone: document.getElementById('phone').value,
+                polname: document.getElementById('polname').value,
+                sender: document.getElementById('sender').value,
+                sender_contry: document.getElementById('sender_contry').value,
+                sender_address: document.getElementById('sender_address').value,
+                sender_phone: document.getElementById('sender_phone').value,
+                type: document.getElementById('type').value,
+                weight: document.getElementById('weight').value,
+                places: document.getElementById('places').value,
+                items: items,
+                signature_url: signatureUrl
+            };
+        }
+
+        async function uploadSignature() {
+            const signatureData = canvas.toDataURL('image/jpeg', 0.7);
+            const userId = tg.initDataUnsafe?.user?.id || 0;
+            const response = await fetch(`${SERVER_URL}/save_signature`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ user_id: userId, signature: signatureData })
+            });
+            if (!response.ok) throw new Error('Ошибка загрузки подписи');
+            const result = await response.json();
+            return result.url;
+        }
+
+        function showStatus(msg, type) {
+            const div = document.getElementById('status');
+            div.textContent = msg;
+            div.className = `status status-${type} show`;
+            setTimeout(() => div.classList.remove('show'), 3000);
+        }
+
+        async function submitForm() {
+            if (!validateForm()) return;
+            
+            const btn = document.querySelector('.submit-btn');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner"></span> Отправка...';
+            
+            try {
+                const signatureUrl = await uploadSignature();
+                const formData = collectFormData(signatureUrl);
+                const jsonString = JSON.stringify(formData);
+                
+                // Проверяем размер
+                if (jsonString.length > 4096) {
+                    throw new Error("Слишком много данных! Уменьшите количество товаров.");
+                }
+                
+                // ОТПРАВЛЯЕМ ЧЕРЕЗ tg.sendData() - ЭТО ГЛАВНОЕ!
+                tg.sendData(jsonString);
+                
+                showStatus('✅ Отправлено!', 'success');
+                setTimeout(() => tg.close(), 1500);
+                
+            } catch (error) {
+                console.error('Ошибка:', error);
+                showStatus('❌ Ошибка: ' + error.message, 'error');
+                btn.disabled = false;
+                btn.innerHTML = '📨 Отправить';
+            }
+        }
+
+        function escapeHtml(str) {
+            return str.replace(/[&<>]/g, function(m) {
+                if (m === '&') return '&amp;';
+                if (m === '<') return '&lt;';
+                if (m === '>') return '&gt;';
+                return m;
+            });
+        }
+
+        document.getElementById('itemModal').addEventListener('click', function(e) { if (e.target === this) closeItemModal(); });
+    </script>
+</body>
+</html>

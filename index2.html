@@ -463,7 +463,7 @@
             container.innerHTML = items.map((item, idx) => `
                 <div class="item-card">
                     <div>
-                        <div class="item-name">${idx + 1}.${escapeHtml(item.name)}</div>
+                        <div class="item-name">${idx + 1}. ${escapeHtml(item.name)}</div>
                         <div class="item-details">${item.unit} | ${item.qty} шт | ${item.price} ₽</div>
                     </div>
                     <button class="delete-item-btn" onclick="deleteItem(${idx})">🗑 Удалить</button>

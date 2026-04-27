@@ -11,7 +11,7 @@
             background: var(--tg-theme-bg-color);
             font-family: system-ui, -apple-system, sans-serif;
             padding: 16px;
-            padding-bottom: 400px; /* Увеличен для удобства на Android */
+            padding-bottom: 400px;
         }
         .container { max-width: 600px; margin: 0 auto; }
         .header {
@@ -450,16 +450,13 @@
             }, 100);
         }
 
-        // Применяем ко всем полям ввода
         document.querySelectorAll('input, textarea, select').forEach(el => {
             el.addEventListener('focus', () => scrollToElement(el));
             el.addEventListener('click', () => scrollToElement(el));
             el.addEventListener('touchstart', () => scrollToElement(el));
         });
 
-        // Для модального окна
-        const modalInputs = document.querySelectorAll('#itemModal input');
-        modalInputs.forEach(el => {
+        document.querySelectorAll('#itemModal input').forEach(el => {
             el.addEventListener('focus', () => scrollToElement(el));
             el.addEventListener('click', () => scrollToElement(el));
         });
@@ -685,9 +682,15 @@
                     throw new Error("Слишком много данных! Уменьшите количество товаров.");
                 }
                 
+                // Отправляем данные в бота
                 tg.sendData(jsonString);
-                showStatus('✅ Отправлено! Бот создаст документы', 'success');
-                setTimeout(() => tg.close(), 2000);
+                
+                showStatus('✅ Данные отправлены! Бот создаёт документы...', 'success');
+                
+                // Закрываем WebApp через 1 секунду
+                setTimeout(() => {
+                    tg.close();
+                }, 1000);
                 
             } catch (error) {
                 console.error('Ошибка:', error);

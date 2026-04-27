@@ -11,7 +11,7 @@
             background: var(--tg-theme-bg-color);
             font-family: system-ui, -apple-system, sans-serif;
             padding: 16px;
-            padding-bottom: 80px;
+            padding-bottom: 400px; /* Увеличен для удобства на Android */
         }
         .container { max-width: 600px; margin: 0 auto; }
         .header {
@@ -138,6 +138,8 @@
             padding: 20px;
             width: 90%;
             max-width: 400px;
+            max-height: 80vh;
+            overflow-y: auto;
         }
         .modal-content input {
             background: white;
@@ -437,6 +439,31 @@
             if (fieldId) markErrorField(fieldId);
             showStatus(message, 'error');
         }
+
+        // ========== АВТО-ПРОКРУТКА ДЛЯ ANDROID ==========
+        function scrollToElement(element) {
+            setTimeout(() => {
+                const rect = element.getBoundingClientRect();
+                const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+                const targetTop = rect.top + scrollTop - 120;
+                window.scrollTo({ top: targetTop, behavior: 'smooth' });
+            }, 100);
+        }
+
+        // Применяем ко всем полям ввода
+        document.querySelectorAll('input, textarea, select').forEach(el => {
+            el.addEventListener('focus', () => scrollToElement(el));
+            el.addEventListener('click', () => scrollToElement(el));
+            el.addEventListener('touchstart', () => scrollToElement(el));
+        });
+
+        // Для модального окна
+        const modalInputs = document.querySelectorAll('#itemModal input');
+        modalInputs.forEach(el => {
+            el.addEventListener('focus', () => scrollToElement(el));
+            el.addEventListener('click', () => scrollToElement(el));
+        });
+        // ========== КОНЕЦ АВТО-ПРОКРУТКИ ==========
 
         document.getElementById('name').addEventListener('blur', function() {
             if (this.value.trim()) this.value = capitalizeWords(this.value.trim());

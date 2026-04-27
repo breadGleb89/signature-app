@@ -13,6 +13,11 @@
             padding: 16px;
             padding-bottom: 400px;
         }
+        body.modal-open {
+            overflow: hidden;
+            position: fixed;
+            width: 100%;
+        }
         .container { max-width: 600px; margin: 0 auto; }
         .header {
             text-align: center;
@@ -131,6 +136,7 @@
             z-index: 1000;
             align-items: center;
             justify-content: center;
+            overflow-y: auto;
         }
         .modal-content {
             background: white;
@@ -140,6 +146,10 @@
             max-width: 400px;
             max-height: 80vh;
             overflow-y: auto;
+            margin: auto;
+            position: relative;
+            top: 0;
+            transform: none;
         }
         .modal-content input {
             background: white;
@@ -259,8 +269,8 @@
         <div class="section">
             <div class="section-title">👤 Данные заказчика</div>
             <div class="form-group"><label>ФИО заказчика *</label><input type="text" id="name" placeholder="Иванов Иван Иванович"></div>
-            <div class="form-group"><label>Дата заказа *</label><input type="date" id="order_date"></div>
-            <div class="form-group"><label>Номер телефона заказчика *</label><input type="tel" id="customer_phone" placeholder="+375291234567" maxlength="13"></div>
+            <div class="form-group"><label>Дата заказа (дата когда выезжает бус) *</label><input type="date" id="order_date"></div>
+            <div class="form-group"><label>Номер телефона заказчика (телефон того что заполняет заказ) *</label><input type="tel" id="customer_phone" placeholder="+375291234567" maxlength="13"></div>
             <div class="form-group"><label>Серия паспорта *</label><input type="text" id="passport_series" placeholder="AB" maxlength="2"></div>
             <div class="form-group"><label>Номер паспорта *</label><input type="text" id="passport_number" placeholder="1234567" maxlength="7"></div>
             <div class="form-group"><label>Кем выдан *</label><input type="text" id="issued_by" placeholder="Кобринским РОВД"></div>
@@ -281,12 +291,12 @@
             <div class="form-group"><label>Улица доставки *</label><input type="text" id="street" placeholder="Ленина"></div>
             <div class="form-group"><label>Дом и квартира *</label><input type="text" id="house" placeholder="д.1, кв.6"></div>
             <div class="form-group"><label>Телефон получателя *</label><input type="tel" id="phone" placeholder="+375291234567" maxlength="13"></div>
-            <div class="form-group"><label>Имя получателя *</label><input type="text" id="polname" placeholder="Иванов Иван Иванович"></div>
+            <div class="form-group"><label>ФИО получателя *</label><input type="text" id="polname" placeholder="Иванов Иван Иванович"></div>
         </div>
 
         <div class="section">
             <div class="section-title">🏢 Данные отправителя</div>
-            <div class="form-group"><label>Имя отправителя *</label><input type="text" id="sender" placeholder="ИП Усманов А.В."></div>
+            <div class="form-group"><label>ФИО отправителя *</label><input type="text" id="sender" placeholder="ИП Усманов А.В."></div>
             <div class="form-group">
                 <label>Страна отправления *</label>
                 <select id="sender_contry">
@@ -440,7 +450,7 @@
             showStatus(message, 'error');
         }
 
-        // ========== АВТО-ПРОКРУТКА ДЛЯ ANDROID ==========
+        // Авто-прокрутка для Android
         function scrollToElement(element) {
             setTimeout(() => {
                 const rect = element.getBoundingClientRect();
@@ -460,7 +470,6 @@
             el.addEventListener('focus', () => scrollToElement(el));
             el.addEventListener('click', () => scrollToElement(el));
         });
-        // ========== КОНЕЦ АВТО-ПРОКРУТКИ ==========
 
         document.getElementById('name').addEventListener('blur', function() {
             if (this.value.trim()) this.value = capitalizeWords(this.value.trim());
@@ -495,9 +504,14 @@
             `).join('');
         }
 
+        // ========== УЛУЧШЕННАЯ РАБОТА С МОДАЛЬНЫМ ОКНОМ ==========
         function showItemModal(index = -1) {
             editingIndex = index;
             const modal = document.getElementById('itemModal');
+            
+            // Сохраняем позицию прокрутки
+            window._scrollPosition = window.pageYOffset || document.documentElement.scrollTop;
+            
             if (index >= 0) {
                 document.getElementById('modalTitle').textContent = 'Редактировать товар';
                 const item = items[index];
@@ -512,10 +526,30 @@
                 document.getElementById('item_qty').value = '';
                 document.getElementById('item_price').value = '';
             }
+            
             modal.style.display = 'flex';
+            document.body.style.overflow = 'hidden';
+            document.body.classList.add('modal-open');
         }
 
-        function closeItemModal() { document.getElementById('itemModal').style.display = 'none'; editingIndex = -1; }
+        function closeItemModal() { 
+            const modal = document.getElementById('itemModal');
+            modal.style.display = 'none';
+            document.body.style.overflow = '';
+            document.body.classList.remove('modal-open');
+            
+            // Восстанавливаем позицию прокрутки
+            if (window._scrollPosition !== undefined) {
+                setTimeout(() => {
+                    window.scrollTo({
+                        top: window._scrollPosition,
+                        behavior: 'smooth'
+                    });
+                }, 10);
+            }
+            editingIndex = -1;
+        }
+
         function deleteItem(index) { items.splice(index, 1); renderItems(); }
 
         function saveItem() {
@@ -682,12 +716,9 @@
                     throw new Error("Слишком много данных! Уменьшите количество товаров.");
                 }
                 
-                // Отправляем данные в бота
                 tg.sendData(jsonString);
-                
                 showStatus('✅ Данные отправлены! Бот создаёт документы...', 'success');
                 
-                // Закрываем WebApp через 1 секунду
                 setTimeout(() => {
                     tg.close();
                 }, 1000);
@@ -709,7 +740,10 @@
             });
         }
 
-        document.getElementById('itemModal').addEventListener('click', function(e) { if (e.target === this) closeItemModal(); });
+        // Закрытие при клике на фон
+        document.getElementById('itemModal').addEventListener('click', function(e) { 
+            if (e.target === this) closeItemModal(); 
+        });
     </script>
 </body>
 </html>

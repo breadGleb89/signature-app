@@ -700,6 +700,8 @@
             setTimeout(() => div.classList.remove('show'), 4000);
         }
 
+
+        
         async function submitForm() {
             if (!validateForm()) return;
             
@@ -710,18 +712,26 @@
             try {
                 const signatureUrl = await uploadSignature();
                 const formData = collectFormData(signatureUrl);
-                const jsonString = JSON.stringify(formData);
                 
-                if (jsonString.length > 4096) {
-                    throw new Error("Слишком много данных! Уменьшите количество товаров.");
+                // 1. Сохраняем ВСЕ данные на сервере
+                const saveResponse = await fetch(`${SERVER_URL}/save_form_data`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ form_data: formData })
+                });
+                
+                if (!saveResponse.ok) {
+                    throw new Error('Ошибка сохранения данных на сервере');
                 }
                 
-                tg.sendData(jsonString);
-                showStatus('✅ Данные отправлены! Бот создаёт документы...', 'success');
+                const result = await saveResponse.json();
+                const sessionId = result.session_id;
                 
-                setTimeout(() => {
-                    tg.close();
-                }, 1000);
+                // 2. В бота отправляем ТОЛЬКО session_id (маленький размер)
+                tg.sendData(JSON.stringify({ session_id: sessionId }));
+                
+                showStatus('✅ Данные отправлены!', 'success');
+                setTimeout(() => tg.close(), 1000);
                 
             } catch (error) {
                 console.error('Ошибка:', error);
@@ -731,6 +741,10 @@
             }
         }
 
+
+
+
+        
         function escapeHtml(str) {
             return str.replace(/[&<>]/g, function(m) {
                 if (m === '&') return '&amp;';

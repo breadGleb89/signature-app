@@ -11,7 +11,7 @@
             background: var(--tg-theme-bg-color);
             font-family: system-ui, -apple-system, sans-serif;
             padding: 16px;
-            padding-bottom: 400px;
+            padding-bottom: 120px;
         }
         body.modal-open {
             overflow: hidden;
@@ -209,6 +209,7 @@
             font-weight: 600;
             cursor: pointer;
             margin-top: 20px;
+            margin-bottom: 30px;
         }
         .submit-btn:disabled { opacity: 0.6; }
         .status {
@@ -256,6 +257,16 @@
             text-align: center;
             padding: 20px;
             color: #999;
+        }
+        
+        /* Дополнительные стили для iPhone */
+        @media (max-width: 480px) {
+            .submit-btn {
+                margin-bottom: 40px;
+            }
+            body {
+                padding-bottom: 100px;
+            }
         }
     </style>
 </head>
@@ -357,6 +368,7 @@
         
         let items = [];
         let editingIndex = -1;
+        let savedScrollPosition = 0;
 
         document.getElementById('order_date').valueAsDate = new Date();
         document.getElementById('passport_date').valueAsDate = new Date();
@@ -450,12 +462,12 @@
             showStatus(message, 'error');
         }
 
-        // Авто-прокрутка для Android
+        // Авто-прокрутка для Android и iPhone
         function scrollToElement(element) {
             setTimeout(() => {
                 const rect = element.getBoundingClientRect();
                 const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-                const targetTop = rect.top + scrollTop - 120;
+                const targetTop = rect.top + scrollTop - 100;
                 window.scrollTo({ top: targetTop, behavior: 'smooth' });
             }, 100);
         }
@@ -504,13 +516,13 @@
             `).join('');
         }
 
-        // ========== УЛУЧШЕННАЯ РАБОТА С МОДАЛЬНЫМ ОКНОМ ==========
+        // ========== УЛУЧШЕННАЯ РАБОТА С МОДАЛЬНЫМ ОКНОМ (с сохранением позиции) ==========
         function showItemModal(index = -1) {
+            // Сохраняем текущую позицию прокрутки
+            savedScrollPosition = window.pageYOffset || document.documentElement.scrollTop;
+            
             editingIndex = index;
             const modal = document.getElementById('itemModal');
-            
-            // Сохраняем позицию прокрутки
-            window._scrollPosition = window.pageYOffset || document.documentElement.scrollTop;
             
             if (index >= 0) {
                 document.getElementById('modalTitle').textContent = 'Редактировать товар';
@@ -539,11 +551,11 @@
             document.body.classList.remove('modal-open');
             
             // Восстанавливаем позицию прокрутки
-            if (window._scrollPosition !== undefined) {
+            if (savedScrollPosition !== undefined) {
                 setTimeout(() => {
                     window.scrollTo({
-                        top: window._scrollPosition,
-                        behavior: 'smooth'
+                        top: savedScrollPosition,
+                        behavior: 'instant'
                     });
                 }, 10);
             }
@@ -700,8 +712,6 @@
             setTimeout(() => div.classList.remove('show'), 4000);
         }
 
-
-        
         async function submitForm() {
             if (!validateForm()) return;
             
@@ -713,7 +723,6 @@
                 const signatureUrl = await uploadSignature();
                 const formData = collectFormData(signatureUrl);
                 
-                // 1. Сохраняем ВСЕ данные на сервере
                 const saveResponse = await fetch(`${SERVER_URL}/save_form_data`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -727,7 +736,6 @@
                 const result = await saveResponse.json();
                 const sessionId = result.session_id;
                 
-                // 2. В бота отправляем ТОЛЬКО session_id (маленький размер)
                 tg.sendData(JSON.stringify({ session_id: sessionId }));
                 
                 showStatus('✅ Данные отправлены!', 'success');
@@ -741,10 +749,6 @@
             }
         }
 
-
-
-
-        
         function escapeHtml(str) {
             return str.replace(/[&<>]/g, function(m) {
                 if (m === '&') return '&amp;';
@@ -754,7 +758,6 @@
             });
         }
 
-        // Закрытие при клике на фон
         document.getElementById('itemModal').addEventListener('click', function(e) { 
             if (e.target === this) closeItemModal(); 
         });

@@ -735,11 +735,12 @@
                 
                 const result = await saveResponse.json();
                 const sessionId = result.session_id;
-                
+                console.log("sendData отправлен", sessionId);
                 tg.sendData(JSON.stringify({ session_id: sessionId }));
-                
-                showStatus('✅ Данные отправлены!', 'success');
-                setTimeout(() => tg.close(), 1000);
+                setTimeout(() => {
+                tg.close();
+                }, 100);
+          
                 
             } catch (error) {
                 console.error('Ошибка:', error);

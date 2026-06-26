@@ -1,0 +1,1000 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>Оформление заказ-поручения</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        /* (Ваши стили остались без изменений) */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: var(--tg-theme-bg-color);
+            font-family: system-ui, -apple-system, sans-serif;
+            padding: 16px;
+            padding-bottom: 120px;
+        }
+        body.modal-open {
+            overflow: hidden;
+            position: fixed;
+            width: 100%;
+        }
+        .container { max-width: 600px; margin: 0 auto; }
+        .header {
+            text-align: center;
+            margin-bottom: 24px;
+            padding: 20px;
+            background: linear-gradient(135deg, #6c5ce7 0%, #a355f7 100%);
+            border-radius: 20px;
+            color: white;
+        }
+        .header h1 { font-size: 24px; margin-bottom: 8px; }
+        .section {
+            background: white;
+            border-radius: 16px;
+            padding: 16px;
+            margin-bottom: 16px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+        .section-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            color: #333;
+            border-bottom: 2px solid #6c5ce7;
+            padding-bottom: 8px;
+        }
+        .form-group { margin-bottom: 20px; }
+        .form-group label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 6px;
+            color: #555;
+            transition: color 0.2s ease;
+        }
+        .form-group:focus-within label {
+            color: #6c5ce7;
+            font-weight: 600;
+        }
+        .form-group input, 
+        .form-group textarea, 
+        .form-group select {
+            width: 100%;
+            padding: 14px 12px;
+            border: 1.5px solid #ddd;
+            border-radius: 12px;
+            font-size: 16px;
+            background: white;
+            color: #000;
+            transition: all 0.2s ease;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+        .form-group input:focus, 
+        .form-group textarea:focus, 
+        .form-group select:focus {
+            outline: none;
+            border-color: #6c5ce7;
+            border-width: 2px;
+            box-shadow: 0 0 0 3px rgba(108, 92, 231, 0.2);
+            background-color: #fff;
+        }
+        .error-field {
+            border-color: #dc3545 !important;
+            background-color: #fff0f0 !important;
+        }
+        .items-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        .add-item-btn {
+            padding: 10px 20px;
+            background: #6c5ce7;
+            color: white;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        .items-list { 
+            max-height: 300px; 
+            overflow-y: auto; 
+            background: white;
+            border-radius: 12px;
+        }
+        .item-card {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 12px;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border: 1px solid #e9ecef;
+        }
+        .item-name { font-weight: 500; color: #000; }
+        .item-details { font-size: 12px; color: #666; }
+        .delete-item-btn {
+            padding: 6px 12px;
+            background: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            overflow-y: auto;
+        }
+        .modal-content {
+            background: white;
+            border-radius: 20px;
+            padding: 20px;
+            width: 90%;
+            max-width: 400px;
+            max-height: 80vh;
+            overflow-y: auto;
+            margin: auto;
+            position: relative;
+            top: 0;
+            transform: none;
+        }
+        .modal-content input {
+            background: white;
+            color: #000;
+            border: 1px solid #ccc;
+        }
+        .modal-buttons {
+            display: flex;
+            gap: 12px;
+            margin-top: 20px;
+        }
+        .modal-buttons button {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+        }
+        .signature-area {
+            background: white;
+            border-radius: 12px;
+            padding: 12px;
+            text-align: center;
+        }
+        canvas {
+            display: block;
+            width: 100%;
+            height: auto;
+            background: white;
+            border-radius: 8px;
+            cursor: crosshair;
+            touch-action: none;
+            margin-bottom: 10px;
+            border: 1px solid #ddd;
+        }
+        .signature-buttons {
+            display: flex;
+            gap: 8px;
+        }
+        .signature-buttons button {
+            flex: 1;
+            padding: 8px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            background: #6c5ce7;
+            color: white;
+        }
+        .submit-btn {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+            border: none;
+            border-radius: 16px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 20px;
+            margin-bottom: 30px;
+        }
+        .submit-btn:disabled { opacity: 0.6; }
+        .status {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            padding: 12px;
+            border-radius: 12px;
+            text-align: center;
+            font-size: 14px;
+            display: none;
+            z-index: 1000;
+        }
+        .status.show { display: block; animation: slideUp 0.3s ease; }
+        .status-success { background: #28a745; color: white; }
+        .status-error { background: #dc3545; color: white; }
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 0.8s linear infinite;
+            margin-right: 8px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes slideUp {
+            from { transform: translateY(100px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        .flag {
+            font-size: 20px;
+            margin-right: 8px;
+            vertical-align: middle;
+        }
+        select {
+            cursor: pointer;
+            background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'></polyline></svg>");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+        }
+        .empty-items {
+            text-align: center;
+            padding: 20px;
+            color: #999;
+        }
+        
+        @media (max-width: 480px) {
+            .submit-btn { margin-bottom: 40px; }
+            body { padding-bottom: 100px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📦 Заказ-поручение</h1>
+            <p>Заполните все поля формы</p>
+        </div>
+
+        <!-- СЮДА БУДЕТ ВСТАВЛЕН ИНТЕРФЕЙС ПРОФИЛЕЙ (автоматически через JS) -->
+        <div id="profileContainer"></div>
+
+        <div class="section">
+            <div class="section-title">👤 Данные заказчика</div>
+            <div class="form-group"><label>ФИО заказчика *</label><input type="text" id="name" placeholder="Иванов Иван Иванович"></div>
+            <div class="form-group"><label>Дата заказа (дата когда выезжает бус) *</label><input type="date" id="order_date"></div>
+            <div class="form-group"><label>Номер телефона заказчика (телефон того, кто заполняет заказ) *</label><input type="tel" id="customer_phone" placeholder="+375291234567" maxlength="13"></div>
+            <div class="form-group"><label>Серия паспорта (только буквы) *</label><input type="text" id="passport_series" placeholder="AB" maxlength="2"></div>
+            <div class="form-group"><label>Номер паспорта (только цифры) *</label><input type="text" id="passport_number" placeholder="1234567" maxlength="7"></div>
+            <div class="form-group"><label>Кем выдан паспорт *</label><input type="text" id="issued_by" placeholder="Кобринским РОВД"></div>
+            <div class="form-group"><label>Дата выдачи паспорта *</label><input type="date" id="passport_date"></div>
+            <div class="form-group"><label>Адрес прописки *</label><textarea id="registration" placeholder="г.Брест, ул. Ленина, д.1, кв.20"></textarea></div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">📍 Данные получателя</div>
+            <div class="form-group">
+                <label>Страна доставки (куда едет посылка) *</label>
+                <select id="contry">
+                    <option value="Республика Беларусь">🇧🇾 Республика Беларусь</option>
+                    <option value="Российская Федерация">🇷🇺 Российская Федерация</option>
+                </select>
+            </div>
+            <div class="form-group"><label>Город доставки *</label><input type="text" id="city" placeholder="Минск"></div>
+            <div class="form-group"><label>Улица доставки *</label><input type="text" id="street" placeholder="Ленина"></div>
+            <div class="form-group"><label>Дом и квартира *</label><input type="text" id="house" placeholder="д.1, кв.6"></div>
+            <div class="form-group"><label>Телефон получателя *</label><input type="tel" id="phone" placeholder="+375291234567" maxlength="13"></div>
+            <div class="form-group"><label>ФИО получателя *</label><input type="text" id="polname" placeholder="Иванов Иван Иванович"></div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">🏢 Данные отправителя</div>
+            <div class="form-group"><label>ФИО отправителя *</label><input type="text" id="sender" placeholder="ИП Усманов А.В."></div>
+            <div class="form-group">
+                <label>Страна отправления (откуда отправляется посылка)*</label>
+                <select id="sender_contry">
+                    <option value="Российская Федерация">🇷🇺 Российская Федерация</option>
+                    <option value="Республика Беларусь">🇧🇾 Республика Беларусь</option>        
+                </select>
+            </div>
+            <div class="form-group"><label>Адрес отправителя *</label><textarea id="sender_address" placeholder="г.Москва, ул.Рябиновая, д.6"></textarea></div>
+            <div class="form-group"><label>Телефон отправителя *</label><input type="tel" id="sender_phone" placeholder="+79051745953" maxlength="13"></div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">📦 Данные груза</div>
+            <div class="form-group"><label>Тип груза *</label><input type="text" id="type" placeholder="коробка, мешок, сборный груз"></div>
+            <div class="form-group"><label>Масса груза (кг) *</label><input type="number" id="weight" placeholder="12.5" step="0.1"></div>
+            <div class="form-group"><label>Количество мест *</label><input type="number" id="places" placeholder="3"></div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">🛒 Товары</div>
+            <div class="items-header">
+                <span style="font-weight: 500;">Список товаров</span>
+                <button class="add-item-btn" onclick="showItemModal()">➕ Добавить товар</button>
+            </div>
+            <div id="itemsList" class="items-list"><div class="empty-items">Нет добавленных товаров</div></div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">✍️ Электронная подпись</div>
+            <div class="signature-area">
+                <canvas id="sigCanvas" width="350" height="150"></canvas>
+                <div class="signature-buttons"><button onclick="clearCanvas()">🗑 Очистить</button></div>
+            </div>
+        </div>
+
+        <button class="submit-btn" onclick="submitForm()">📨 Отправить</button>
+    </div>
+
+    <div id="itemModal" class="modal">
+        <div class="modal-content">
+            <div class="section-title" id="modalTitle">Добавить товар</div>
+            <div class="form-group"><label>Наименование *</label><input type="text" id="item_name" placeholder="Куртка женская арт.123"></div>
+            <div class="form-group"><label>Единица измерения *</label><input type="text" id="item_unit" placeholder="шт / кг"></div>
+            <div class="form-group"><label>Количество *</label><input type="number" id="item_qty" step="0.01" placeholder="5"></div>
+            <div class="form-group"><label>Цена *</label><input type="number" id="item_price" step="0.01" placeholder="120.50"></div>
+            <div class="modal-buttons"><button onclick="closeItemModal()" style="background:#6c757d;color:white;">Отмена</button><button onclick="saveItem()" style="background:#6c5ce7;color:white;">Сохранить</button></div>
+        </div>
+    </div>
+
+    <div id="status" class="status"></div>
+
+    <script>
+        const tg = window.Telegram.WebApp;
+        tg.ready();
+        tg.expand();
+        
+        const SERVER_URL = "https://bread89.pythonanywhere.com/";
+        
+        let items = [];
+        let editingIndex = -1;
+        let savedScrollPosition = 0;
+
+        document.getElementById('order_date').valueAsDate = new Date();
+        document.getElementById('passport_date').valueAsDate = new Date();
+
+        const canvas = document.getElementById('sigCanvas');
+        const ctx = canvas.getContext('2d');
+        let drawing = false;
+        ctx.fillStyle = 'white';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.strokeStyle = 'black';
+        ctx.lineWidth = 2;
+        ctx.lineCap = 'round';
+
+        function getCoords(e) {
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            let x, y;
+            if (e.touches) {
+                x = (e.touches[0].clientX - rect.left) * scaleX;
+                y = (e.touches[0].clientY - rect.top) * scaleY;
+                e.preventDefault();
+            } else {
+                x = (e.clientX - rect.left) * scaleX;
+                y = (e.clientY - rect.top) * scaleY;
+            }
+            return { x: Math.min(Math.max(0, x), canvas.width), y: Math.min(Math.max(0, y), canvas.height) };
+        }
+
+        function start(e) { drawing = true; const p = getCoords(e); ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x, p.y); ctx.stroke(); e.preventDefault(); }
+        function draw(e) { if (!drawing) return; e.preventDefault(); const p = getCoords(e); ctx.lineTo(p.x, p.y); ctx.stroke(); ctx.beginPath(); ctx.moveTo(p.x, p.y); }
+        function stop(e) { drawing = false; ctx.beginPath(); e.preventDefault(); }
+
+        canvas.addEventListener('mousedown', start);
+        canvas.addEventListener('mousemove', draw);
+        canvas.addEventListener('mouseup', stop);
+        canvas.addEventListener('mouseleave', stop);
+        canvas.addEventListener('touchstart', start, { passive: false });
+        canvas.addEventListener('touchmove', draw, { passive: false });
+        canvas.addEventListener('touchend', stop);
+
+        function clearCanvas() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = 'white';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
+
+        function isCanvasEmpty() {
+            const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+            for (let i = 0; i < pixels.length; i += 4) {
+                if (pixels[i] < 250) return false;
+            }
+            return true;
+        }
+
+        function capitalizeFirst(str) {
+            if (!str) return str;
+            return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+        }
+
+        function capitalizeWords(str) {
+            return str.split(' ').map(word => capitalizeFirst(word)).join(' ');
+        }
+
+        function validateFullName(name, fieldName) {
+            const trimmed = name.trim();
+            if (!trimmed) return { valid: false, message: `Заполните поле "${fieldName}"` };
+            const words = trimmed.split(/\s+/);
+            if (words.length < 2) return { valid: false, message: `В поле "${fieldName}" введите минимум 2 слова (Фамилию и Имя)` };
+            return { valid: true, value: capitalizeWords(trimmed) };
+        }
+
+        function validatePhone(phone) {
+            const cleaned = phone.replace(/[^\d+]/g, '');
+            if (cleaned.length < 6 || cleaned.length > 13) return false;
+            return true;
+        }
+
+        function removeErrorStyles() {
+            document.querySelectorAll('input, textarea, select').forEach(el => el.classList.remove('error-field'));
+        }
+
+        function markErrorField(fieldId) {
+            const field = document.getElementById(fieldId);
+            if (field) field.classList.add('error-field');
+        }
+
+        function showError(message, fieldId = null) {
+            removeErrorStyles();
+            if (fieldId) markErrorField(fieldId);
+            showStatus(message, 'error');
+        }
+
+        // Авто-прокрутка
+        function scrollToElement(element) {
+            setTimeout(() => {
+                const rect = element.getBoundingClientRect();
+                const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+                const targetTop = rect.top + scrollTop - 100;
+                window.scrollTo({ top: targetTop, behavior: 'smooth' });
+            }, 100);
+        }
+
+        document.querySelectorAll('input, textarea, select').forEach(el => {
+            el.addEventListener('focus', () => scrollToElement(el));
+            el.addEventListener('click', () => scrollToElement(el));
+            el.addEventListener('touchstart', () => scrollToElement(el));
+        });
+
+        document.querySelectorAll('#itemModal input').forEach(el => {
+            el.addEventListener('focus', () => scrollToElement(el));
+            el.addEventListener('click', () => scrollToElement(el));
+        });
+
+        document.getElementById('name').addEventListener('blur', function() {
+            if (this.value.trim()) this.value = capitalizeWords(this.value.trim());
+        });
+        document.getElementById('polname').addEventListener('blur', function() {
+            if (this.value.trim()) this.value = capitalizeWords(this.value.trim());
+        });
+        document.getElementById('sender').addEventListener('blur', function() {
+            if (this.value.trim()) this.value = capitalizeWords(this.value.trim());
+        });
+        document.getElementById('city').addEventListener('blur', function() {
+            if (this.value.trim()) this.value = capitalizeFirst(this.value.trim());
+        });
+        document.getElementById('street').addEventListener('blur', function() {
+            if (this.value.trim()) this.value = capitalizeFirst(this.value.trim());
+        });
+
+        function renderItems() {
+            const container = document.getElementById('itemsList');
+            if (items.length === 0) {
+                container.innerHTML = '<div class="empty-items">Нет добавленных товаров</div>';
+                return;
+            }
+            container.innerHTML = items.map((item, idx) => `
+                <div class="item-card">
+                    <div>
+                        <div class="item-name">${idx + 1}. ${escapeHtml(item.name)}</div>
+                        <div class="item-details">${item.unit} | ${item.qty} шт | ${item.price} ₽</div>
+                    </div>
+                    <button class="delete-item-btn" onclick="deleteItem(${idx})">🗑 Удалить</button>
+                </div>
+            `).join('');
+        }
+
+        // ========== РАБОТА С МОДАЛЬНЫМ ОКНОМ ==========
+        function showItemModal(index = -1) {
+            savedScrollPosition = window.pageYOffset || document.documentElement.scrollTop;
+            editingIndex = index;
+            const modal = document.getElementById('itemModal');
+            if (index >= 0) {
+                document.getElementById('modalTitle').textContent = 'Редактировать товар';
+                const item = items[index];
+                document.getElementById('item_name').value = item.name;
+                document.getElementById('item_unit').value = item.unit;
+                document.getElementById('item_qty').value = item.qty;
+                document.getElementById('item_price').value = item.price;
+            } else {
+                document.getElementById('modalTitle').textContent = 'Добавить товар';
+                document.getElementById('item_name').value = '';
+                document.getElementById('item_unit').value = '';
+                document.getElementById('item_qty').value = '';
+                document.getElementById('item_price').value = '';
+            }
+            modal.style.display = 'flex';
+            document.body.style.overflow = 'hidden';
+            document.body.classList.add('modal-open');
+        }
+
+        function closeItemModal() { 
+            const modal = document.getElementById('itemModal');
+            modal.style.display = 'none';
+            document.body.style.overflow = '';
+            document.body.classList.remove('modal-open');
+            if (savedScrollPosition !== undefined) {
+                setTimeout(() => {
+                    window.scrollTo({ top: savedScrollPosition, behavior: 'instant' });
+                }, 10);
+            }
+            editingIndex = -1;
+        }
+
+        function deleteItem(index) { items.splice(index, 1); renderItems(); }
+
+        function saveItem() {
+            const name = document.getElementById('item_name').value.trim();
+            const unit = document.getElementById('item_unit').value.trim();
+            const qty = document.getElementById('item_qty').value;
+            const price = document.getElementById('item_price').value;
+            if (!name) { showStatus('Заполните наименование товара', 'error'); return; }
+            if (!unit) { showStatus('Заполните единицу измерения', 'error'); return; }
+            if (!qty) { showStatus('Заполните количество', 'error'); return; }
+            if (!price) { showStatus('Заполните цену', 'error'); return; }
+            const item = { name, unit, qty, price };
+            if (editingIndex >= 0) items[editingIndex] = item;
+            else items.push(item);
+            renderItems();
+            closeItemModal();
+            showStatus('Товар добавлен', 'success');
+        }
+
+        function validateForm() {
+            removeErrorStyles();
+            // ... (ваша полная валидация)
+            const nameInput = document.getElementById('name');
+            const nameValidation = validateFullName(nameInput.value, 'ФИО заказчика');
+            if (!nameValidation.valid) { showError(nameValidation.message, 'name'); return false; }
+            nameInput.value = nameValidation.value;
+            
+            const order_date = document.getElementById('order_date').value;
+            if (!order_date) { showError('Заполните поле "Дата заказа"', 'order_date'); return false; }
+            
+            const customerPhone = document.getElementById('customer_phone').value.trim();
+            if (!customerPhone) { showError('Заполните поле "Телефон заказчика"', 'customer_phone'); return false; }
+            if (!validatePhone(customerPhone)) { showError('Телефон заказчика должен содержать 6-13 цифр (можно +)', 'customer_phone'); return false; }
+            
+            const passport_series = document.getElementById('passport_series').value.trim();
+            if (!passport_series) { showError('Заполните поле "Серия паспорта"', 'passport_series'); return false; }
+            
+            const passport_number = document.getElementById('passport_number').value.trim();
+            if (!passport_number) { showError('Заполните поле "Номер паспорта"', 'passport_number'); return false; }
+            
+            const issued_by = document.getElementById('issued_by').value.trim();
+            if (!issued_by) { showError('Заполните поле "Кем выдан"', 'issued_by'); return false; }
+            
+            const passport_date = document.getElementById('passport_date').value;
+            if (!passport_date) { showError('Заполните поле "Дата выдачи паспорта"', 'passport_date'); return false; }
+            
+            const registration = document.getElementById('registration').value.trim();
+            if (!registration) { showError('Заполните поле "Адрес прописки"', 'registration'); return false; }
+            
+            const contry = document.getElementById('contry').value;
+            if (!contry) { showError('Заполните поле "Страна доставки"', 'contry'); return false; }
+            
+            const city = document.getElementById('city').value.trim();
+            if (!city) { showError('Заполните поле "Город доставки"', 'city'); return false; }
+            
+            const street = document.getElementById('street').value.trim();
+            if (!street) { showError('Заполните поле "Улица доставки"', 'street'); return false; }
+            
+            const house = document.getElementById('house').value.trim();
+            if (!house) { showError('Заполните поле "Дом и квартира"', 'house'); return false; }
+            
+            const phone = document.getElementById('phone').value.trim();
+            if (!phone) { showError('Заполните поле "Телефон получателя"', 'phone'); return false; }
+            if (!validatePhone(phone)) { showError('Телефон получателя должен содержать 6-13 цифр (можно +)', 'phone'); return false; }
+            
+            const polnameInput = document.getElementById('polname');
+            const polnameValidation = validateFullName(polnameInput.value, 'Имя получателя');
+            if (!polnameValidation.valid) { showError(polnameValidation.message, 'polname'); return false; }
+            polnameInput.value = polnameValidation.value;
+            
+            const senderInput = document.getElementById('sender');
+            const senderValidation = validateFullName(senderInput.value, 'Имя отправителя');
+            if (!senderValidation.valid) { showError(senderValidation.message, 'sender'); return false; }
+            senderInput.value = senderValidation.value;
+            
+            const sender_contry = document.getElementById('sender_contry').value;
+            if (!sender_contry) { showError('Заполните поле "Страна отправления"', 'sender_contry'); return false; }
+            
+            const sender_address = document.getElementById('sender_address').value.trim();
+            if (!sender_address) { showError('Заполните поле "Адрес отправителя"', 'sender_address'); return false; }
+            
+            const sender_phone = document.getElementById('sender_phone').value.trim();
+            if (!sender_phone) { showError('Заполните поле "Телефон отправителя"', 'sender_phone'); return false; }
+            if (!validatePhone(sender_phone)) { showError('Телефон отправителя должен содержать 6-13 цифр (можно +)', 'sender_phone'); return false; }
+            
+            const type = document.getElementById('type').value.trim();
+            if (!type) { showError('Заполните поле "Тип груза"', 'type'); return false; }
+            
+            const weight = document.getElementById('weight').value;
+            if (!weight) { showError('Заполните поле "Масса груза"', 'weight'); return false; }
+            
+            const places = document.getElementById('places').value;
+            if (!places) { showError('Заполните поле "Количество мест"', 'places'); return false; }
+            
+            if (items.length === 0) { showError('Добавьте хотя бы один товар'); return false; }
+            if (isCanvasEmpty()) { showError('Поставьте электронную подпись', 'sigCanvas'); return false; }
+            
+            return true;
+        }
+
+        function collectFormData(signatureUrl) {
+            return {
+                name: document.getElementById('name').value.trim(),
+                order_date: document.getElementById('order_date').value.split('-').reverse().join('.'),
+                customer_phone: document.getElementById('customer_phone').value.trim(),
+                passport_series: document.getElementById('passport_series').value.toUpperCase(),
+                passport_number: document.getElementById('passport_number').value,
+                issued_by: document.getElementById('issued_by').value,
+                passport_date: document.getElementById('passport_date').value.split('-').reverse().join('.'),
+                registration: document.getElementById('registration').value,
+                contry: document.getElementById('contry').value,
+                city: capitalizeFirst(document.getElementById('city').value.trim()),
+                street: capitalizeFirst(document.getElementById('street').value.trim()),
+                house: document.getElementById('house').value,
+                phone: document.getElementById('phone').value.trim(),
+                polname: document.getElementById('polname').value.trim(),
+                sender: document.getElementById('sender').value.trim(),
+                sender_contry: document.getElementById('sender_contry').value,
+                sender_address: document.getElementById('sender_address').value,
+                sender_phone: document.getElementById('sender_phone').value.trim(),
+                type: document.getElementById('type').value,
+                weight: document.getElementById('weight').value,
+                places: document.getElementById('places').value,
+                items: items,
+                signature_url: signatureUrl
+            };
+        }
+
+        async function uploadSignature() {
+            const signatureData = canvas.toDataURL('image/jpeg', 0.7);
+            const userId = tg.initDataUnsafe?.user?.id || 0;
+            const response = await fetch(`${SERVER_URL}/save_signature`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ user_id: userId, signature: signatureData })
+            });
+            if (!response.ok) throw new Error('Ошибка загрузки подписи');
+            const result = await response.json();
+            return result.url;
+        }
+
+        function showStatus(msg, type) {
+            const div = document.getElementById('status');
+            div.textContent = msg;
+            div.className = `status status-${type} show`;
+            setTimeout(() => div.classList.remove('show'), 4000);
+        }
+
+        async function submitForm() {
+            if (!validateForm()) return;
+            const btn = document.querySelector('.submit-btn');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner"></span> Отправка...';
+            try {
+                const signatureUrl = await uploadSignature();
+                const formData = collectFormData(signatureUrl);
+                const saveResponse = await fetch(`${SERVER_URL}/save_form_data`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ form_data: formData })
+                });
+                if (!saveResponse.ok) {
+                    throw new Error('Ошибка сохранения данных на сервере');
+                }
+                const result = await saveResponse.json();
+                const sessionId = result.session_id;
+                console.log("sendData отправлен", sessionId);
+                tg.sendData(JSON.stringify({ session_id: sessionId }));
+                setTimeout(() => { tg.close(); }, 500);
+            } catch (error) {
+                console.error('Ошибка:', error);
+                showStatus('❌ Ошибка: ' + error.message, 'error');
+                btn.disabled = false;
+                btn.innerHTML = '📨 Отправить';
+            }
+        }
+
+        function escapeHtml(str) {
+            return str.replace(/[&<>]/g, function(m) {
+                if (m === '&') return '&amp;';
+                if (m === '<') return '&lt;';
+                if (m === '>') return '&gt;';
+                return m;
+            });
+        }
+
+        document.getElementById('itemModal').addEventListener('click', function(e) { 
+            if (e.target === this) closeItemModal(); 
+        });
+
+        // ====================================================================
+        //         НОВЫЙ ФУНКЦИОНАЛ: СОХРАНЕНИЕ И ЗАГРУЗКА ПРОФИЛЕЙ
+        // ====================================================================
+
+        const userId = tg.initDataUnsafe?.user?.id || 'guest';
+        const STORAGE_KEY = `profiles_${userId}`;
+        const CURRENT_PROFILE_KEY = `current_profile_${userId}`;
+
+        // ТОЛЬКО ЭТИ ПОЛЯ СОХРАНЯЕМ В ПРОФИЛЬ
+        const PROFILE_FIELDS = [
+            'name',                           // ФИО заказчика
+            'customer_phone',                 // Телефон заказчика
+            'passport_series',                // Серия паспорта
+            'passport_number',                // Номер паспорта
+            'issued_by',                      // Кем выдан
+            'passport_date',                  // Дата выдачи паспорта (ТЕПЕРЬ СОХРАНЯЕТСЯ!)
+            'registration',                   // Адрес прописки
+            'city',                           // Город доставки
+            'street',                         // Улица доставки
+            'house',                          // Дом и квартира
+            'phone',                          // Телефон получателя
+            'polname'                         // ФИО получателя
+        ];
+
+        // ----- Работа с localStorage -----
+        function getProfiles() {
+            try {
+                const raw = localStorage.getItem(STORAGE_KEY);
+                if (raw) return JSON.parse(raw);
+            } catch (e) {}
+            return {};
+        }
+
+        function saveProfiles(profiles) {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(profiles));
+        }
+
+        function getCurrentProfileName() {
+            try {
+                return localStorage.getItem(CURRENT_PROFILE_KEY) || '';
+            } catch (e) {
+                return '';
+            }
+        }
+
+        function setCurrentProfileName(name) {
+            localStorage.setItem(CURRENT_PROFILE_KEY, name);
+        }
+
+        function getProfileData(profileName) {
+            const profiles = getProfiles();
+            return profiles[profileName] || null;
+        }
+
+        function saveCurrentProfile(profileName) {
+            const data = {};
+            PROFILE_FIELDS.forEach(fieldId => {
+                const element = document.getElementById(fieldId);
+                if (element) data[fieldId] = element.value;
+            });
+            const profiles = getProfiles();
+            profiles[profileName] = data;
+            saveProfiles(profiles);
+            setCurrentProfileName(profileName);
+            showStatus(`✅ Профиль "${profileName}" сохранён`, 'success');
+            renderProfileButtons();
+        }
+
+        function loadProfile(profileName) {
+            const data = getProfileData(profileName);
+            if (!data) {
+                showStatus('❌ Профиль не найден', 'error');
+                return;
+            }
+            PROFILE_FIELDS.forEach(fieldId => {
+                const element = document.getElementById(fieldId);
+                if (element && data[fieldId] !== undefined) {
+                    element.value = data[fieldId];
+                }
+            });
+            setCurrentProfileName(profileName);
+            showStatus(`📂 Загружен профиль "${profileName}"`, 'success');
+            renderProfileButtons();
+        }
+
+        function deleteProfile(profileName) {
+            if (!confirm(`Удалить профиль "${profileName}"?`)) return;
+            const profiles = getProfiles();
+            delete profiles[profileName];
+            saveProfiles(profiles);
+            if (getCurrentProfileName() === profileName) {
+                setCurrentProfileName('');
+            }
+            showStatus(`🗑 Профиль "${profileName}" удалён`, 'success');
+            renderProfileButtons();
+        }
+
+        function clearAllProfiles() {
+            if (!confirm('Удалить ВСЕ профили?')) return;
+            localStorage.removeItem(STORAGE_KEY);
+            localStorage.removeItem(CURRENT_PROFILE_KEY);
+            showStatus('🗑 Все профили удалены', 'success');
+            renderProfileButtons();
+        }
+
+        function saveNewProfile() {
+            const input = document.getElementById('newProfileName');
+            const name = input.value.trim();
+            if (!name) {
+                showStatus('❌ Введите название профиля', 'error');
+                return;
+            }
+            const profiles = getProfiles();
+            if (profiles[name]) {
+                if (!confirm(`Профиль "${name}" уже существует. Перезаписать?`)) return;
+            }
+            saveCurrentProfile(name);
+            input.value = '';
+            renderProfileButtons();
+        }
+
+        // ----- Отрисовка интерфейса профилей -----
+        function renderProfileButtons() {
+            const container = document.getElementById('profileContainer');
+            if (!container) return;
+            const profiles = getProfiles();
+            const profileNames = Object.keys(profiles);
+            const currentProfile = getCurrentProfileName();
+
+            let html = `
+                <div style="display: flex; flex-wrap: wrap; gap: 4px; align-items: center; margin-bottom: 8px; padding: 8px; background: #f0f0f0; border-radius: 10px;">
+                    <span style="font-size: 12px; font-weight: 600; color: #666; margin-right: 2px;">👤:</span>
+            `;
+            if (profileNames.length === 0) {
+                html += `<span style="font-size: 12px; color: #999;">нет сохранённых профилей</span>`;
+            } else {
+                profileNames.forEach(name => {
+                    const isActive = (name === currentProfile);
+                    html += `
+                        <button onclick="loadProfile('${name}')" style="
+                            padding: 2px 10px;
+                            border: 2px solid ${isActive ? '#6c5ce7' : '#ddd'};
+                            border-radius: 12px;
+                            background: ${isActive ? '#6c5ce7' : 'white'};
+                            color: ${isActive ? 'white' : '#333'};
+                            cursor: pointer;
+                            font-size: 11px;
+                            font-weight: ${isActive ? '600' : '400'};
+                            white-space: nowrap;
+                        ">${name}</button>
+                        <button onclick="deleteProfile('${name}')" style="
+                            padding: 0 4px;
+                            border: none;
+                            border-radius: 8px;
+                            background: transparent;
+                            color: #dc3545;
+                            cursor: pointer;
+                            font-size: 10px;
+                            font-weight: bold;
+                            margin-right: 2px;
+                        ">✕</button>
+                    `;
+                });
+            }
+            html += `
+                </div>
+                <div style="display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 4px;">
+                    <input type="text" id="newProfileName" placeholder="Новый профиль" style="
+                        padding: 4px 8px;
+                        border: 1px solid #ddd;
+                        border-radius: 6px;
+                        font-size: 12px;
+                        flex: 1;
+                        min-width: 80px;
+                    ">
+                    <button onclick="saveNewProfile()" style="
+                        padding: 4px 12px;
+                        background: #28a745;
+                        color: white;
+                        border: none;
+                        border-radius: 6px;
+                        cursor: pointer;
+                        font-size: 12px;
+                    ">💾 Сохранить</button>
+                    <button onclick="clearAllProfiles()" style="
+                        padding: 4px 8px;
+                        background: #dc3545;
+                        color: white;
+                        border: none;
+                        border-radius: 6px;
+                        cursor: pointer;
+                        font-size: 10px;
+                        opacity: 0.6;
+                    ">🗑 Все</button>
+                </div>
+            `;
+            container.innerHTML = html;
+        }
+
+        // ----- Загрузка последнего профиля -----
+        function loadLastProfile() {
+            const currentProfile = getCurrentProfileName();
+            if (currentProfile) {
+                const profiles = getProfiles();
+                if (profiles[currentProfile]) {
+                    loadProfile(currentProfile);
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        // ----- Инициализация при загрузке страницы -----
+        document.addEventListener('DOMContentLoaded', function() {
+            // Добавляем контейнер для профилей (уже есть в HTML)
+            renderProfileButtons();
+            const loaded = loadLastProfile();
+
+            // Автосохранение при изменениях
+            PROFILE_FIELDS.forEach(fieldId => {
+                const element = document.getElementById(fieldId);
+                if (element) {
+                    element.addEventListener('change', function() {
+                        const currentProfile = getCurrentProfileName();
+                        if (currentProfile) {
+                            saveCurrentProfile(currentProfile);
+                        }
+                    });
+                    let timeout;
+                    element.addEventListener('input', function() {
+                        clearTimeout(timeout);
+                        timeout = setTimeout(() => {
+                            const currentProfile = getCurrentProfileName();
+                            if (currentProfile) {
+                                saveCurrentProfile(currentProfile);
+                            }
+                        }, 800);
+                    });
+                }
+            });
+
+            // Сохраняем при уходе
+            window.addEventListener('beforeunload', function() {
+                const currentProfile = getCurrentProfileName();
+                if (currentProfile) {
+                    saveCurrentProfile(currentProfile);
+                }
+            });
+
+            if (loaded) {
+                showStatus('📂 Загружен последний профиль', 'success');
+            }
+        });
+    </script>
+</body>
+</html>

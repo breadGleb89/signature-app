@@ -702,6 +702,9 @@
 
         async function submitForm() {
             if (!validateForm()) return;
+             // ========== СОХРАНЯЕМ ПРОФИЛЬ ПРИ ОТПРАВКЕ ==========
+            saveProfileOnSubmit();
+            // ====================================================
             const btn = document.querySelector('.submit-btn');
             btn.disabled = true;
             btn.innerHTML = '<span class="spinner"></span> Отправка...';
@@ -743,7 +746,7 @@
         });
 
         // ====================================================================
-        //         АВТОМАТИЧЕСКОЕ СОХРАНЕНИЕ ПО ФИО
+        //         АВТОМАТИЧЕСКОЕ СОХРАНЕНИЕ ПО ФИО (ПРИ ОТПРАВКЕ)
         // ====================================================================
         
         const userId = tg.initDataUnsafe?.user?.id || 'guest';
@@ -795,11 +798,15 @@
             profiles[profileName] = data;
             saveProfiles(profiles);
             renderProfileButtons();
+            showStatus(`✅ Профиль "${profileName}" сохранён`, 'success');
         }
         
         function loadProfile(profileName) {
             const data = getProfileData(profileName);
-            if (!data) return;
+            if (!data) {
+                showStatus(`❌ Профиль "${profileName}" не найден`, 'error');
+                return;
+            }
             
             PROFILE_FIELDS.forEach(fieldId => {
                 const element = document.getElementById(fieldId);
@@ -808,6 +815,7 @@
                 }
             });
             renderProfileButtons();
+            showStatus(`📂 Загружен профиль "${profileName}"`, 'success');
         }
         
         function deleteProfile(profileName) {
@@ -816,39 +824,35 @@
             delete profiles[profileName];
             saveProfiles(profiles);
             renderProfileButtons();
+            showStatus(`🗑 Профиль "${profileName}" удалён`, 'success');
         }
         
         function clearAllProfiles() {
             if (!confirm('Удалить ВСЕ профили?')) return;
             localStorage.removeItem(STORAGE_KEY);
             renderProfileButtons();
+            showStatus('🗑 Все профили удалены', 'success');
         }
         
-        // ----- Проверка, изменилось ли ФИО, чтобы автоматически создать новый профиль -----
-        let lastSavedName = '';
-        
-        function autoSaveByFIO() {
+        // ----- Сохранение профиля при отправке -----
+        function saveProfileOnSubmit() {
             const nameField = document.getElementById('name');
             if (!nameField) return;
             
-            const currentName = nameField.value.trim();
-            if (!currentName) return;
+            const profileName = nameField.value.trim();
+            if (!profileName) {
+                // Если ФИО не заполнено, но это маловероятно, так как валидация не пропустит
+                return;
+            }
             
-            // Если имя изменилось — создаём новый профиль
-            if (currentName !== lastSavedName) {
-                // Проверяем, есть ли уже такой профиль
-                const profiles = getProfiles();
-                if (!profiles[currentName]) {
-                    // Новый профиль — сохраняем
-                    saveCurrentProfile(currentName);
-                    lastSavedName = currentName;
-                    showStatus(`✅ Создан профиль "${currentName}"`, 'success');
-                } else {
-                    // Профиль уже есть — загружаем его
-                    loadProfile(currentName);
-                    lastSavedName = currentName;
-                    showStatus(`📂 Загружен профиль "${currentName}"`, 'success');
-                }
+            // Проверяем, есть ли уже такой профиль
+            const profiles = getProfiles();
+            if (!profiles[profileName]) {
+                // Новый профиль — сохраняем
+                saveCurrentProfile(profileName);
+            } else {
+                // Профиль уже есть — обновляем данные
+                saveCurrentProfile(profileName);
             }
         }
         
@@ -870,7 +874,7 @@
                 profileNames.forEach(name => {
                     const isActive = (name === currentName);
                     html += `
-                        <button onclick="loadProfileAndSetName('${name}')" style="
+                        <button onclick="loadProfile('${name}')" style="
                             padding: 2px 10px;
                             border: 2px solid ${isActive ? '#6c5ce7' : '#ddd'};
                             border-radius: 12px;
@@ -912,89 +916,17 @@
             container.innerHTML = html;
         }
         
-        function loadProfileAndSetName(profileName) {
-            const data = getProfileData(profileName);
-            if (!data) return;
-            
-            // Заполняем поля
-            PROFILE_FIELDS.forEach(fieldId => {
-                const element = document.getElementById(fieldId);
-                if (element && data[fieldId] !== undefined) {
-                    element.value = data[fieldId];
-                }
-            });
-            
-            // Обновляем lastSavedName, чтобы при изменении ФИО не создавался дубликат
-            const nameField = document.getElementById('name');
-            if (nameField) {
-                lastSavedName = nameField.value.trim();
-            }
-            
-            showStatus(`📂 Загружен профиль "${profileName}"`, 'success');
-            renderProfileButtons();
-        }
-        
-        // ----- Автосохранение при изменении полей -----
-        function setupAutoSave() {
-            PROFILE_FIELDS.forEach(fieldId => {
-                const element = document.getElementById(fieldId);
-                if (element) {
-                    element.addEventListener('change', function() {
-                        const currentName = document.getElementById('name')?.value.trim();
-                        if (currentName) {
-                            saveCurrentProfile(currentName);
-                        }
-                    });
-                    let timeout;
-                    element.addEventListener('input', function() {
-                        clearTimeout(timeout);
-                        timeout = setTimeout(() => {
-                            const currentName = document.getElementById('name')?.value.trim();
-                            if (currentName) {
-                                saveCurrentProfile(currentName);
-                            }
-                        }, 800);
-                    });
-                }
-            });
-        }
-        
-        // ----- Инициализация при загрузке страницы -----
+        // ----- Инициализация -----
         document.addEventListener('DOMContentLoaded', function() {
             renderProfileButtons();
             
-            // Слушаем изменения ФИО
+            // Загружаем последний сохранённый профиль (по ФИО)
             const nameField = document.getElementById('name');
-            if (nameField) {
-                // При потере фокуса — автосохранение/загрузка
-                nameField.addEventListener('blur', autoSaveByFIO);
-                // При вводе — тоже проверяем (с задержкой)
-                let fioTimeout;
-                nameField.addEventListener('input', function() {
-                    clearTimeout(fioTimeout);
-                    fioTimeout = setTimeout(autoSaveByFIO, 1000);
-                });
-            }
-            
-            // Настраиваем автосохранение остальных полей
-            setupAutoSave();
-            
-            // Сохраняем при уходе
-            window.addEventListener('beforeunload', function() {
-                const currentName = document.getElementById('name')?.value.trim();
-                if (currentName) {
-                    saveCurrentProfile(currentName);
-                }
-            });
-            
-            // При загрузке — если есть ФИО, загружаем профиль
             if (nameField && nameField.value.trim()) {
                 const profileName = nameField.value.trim();
                 const profiles = getProfiles();
                 if (profiles[profileName]) {
                     loadProfile(profileName);
-                    lastSavedName = profileName;
-                    showStatus(`📂 Загружен профиль "${profileName}"`, 'success');
                 }
             }
         });

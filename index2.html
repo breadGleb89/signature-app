@@ -787,6 +787,20 @@
             return {};
         }
 
+        // =====================
+        // АВТОЗАГРУЗКА ПРИ ТОЧНОМ СОВПАДЕНИИ ФИО
+        // =====================
+        document.getElementById('name').addEventListener('blur', function() {
+            const query = this.value.trim();
+            if (query) {
+                const profiles = getProfiles();
+                // Проверяем точное совпадение
+                if (profiles[query]) {
+                    loadProfile(query);
+                    showStatus(`📂 Загружен профиль "${query}"`, 'success');
+                }
+            }
+        });
         
         
         function saveProfiles(profiles) {

@@ -787,20 +787,7 @@
             return {};
         }
 
-        // =====================
-        // АВТОЗАГРУЗКА ПРИ ВВОДЕ ФИО (ДОБАВИТЬ СЮДА)
-        // =====================
-        // При вводе ФИО автоматически загружаем профиль
-        document.getElementById('name').addEventListener('input', function() {
-            const query = this.value.trim();
-            if (query) {
-                const profiles = getProfiles();
-                if (profiles[query]) {
-                    loadProfile(query);
-                }
-            }
-        });
-        // =====================
+        
         
         function saveProfiles(profiles) {
             localStorage.setItem(STORAGE_KEY, JSON.stringify(profiles));

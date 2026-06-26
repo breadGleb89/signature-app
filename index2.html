@@ -259,6 +259,16 @@
             padding: 20px;
             color: #999;
         }
+
+        /* Темный курсор на светлом фоне */
+        input, textarea, select {
+            caret-color: #000000 !important;
+        }
+
+        /* Для iPhone/Safari */
+        input, textarea, select {
+            -webkit-caret-color: #000000 !important;
+        }
         
         @media (max-width: 480px) {
             .submit-btn { margin-bottom: 40px; }

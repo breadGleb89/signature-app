@@ -446,7 +446,7 @@
             const trimmed = name.trim();
             if (!trimmed) return { valid: false, message: `Заполните поле "${fieldName}"` };
             const words = trimmed.split(/\s+/);
-            if (words.length < 2) return { valid: false, message: `В поле "${fieldName}" введите минимум 2 слова (Фамилию и Имя)` };
+            if (words.length < 3) return { valid: false, message: `В поле "${fieldName}" введите минимум 3 слова (Фамилию, Имя и Отчество)` };
             return { valid: true, value: capitalizeWords(trimmed) };
         }
 
